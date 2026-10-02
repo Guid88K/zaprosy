@@ -145,9 +145,10 @@ export function InvitationForm({ initial, authorName }: Props) {
           <div>
             <h2 className="text-lg font-semibold">Екрани</h2>
             <p className="text-sm text-muted">
-              Отримувач гортає їх по черзі. Клікніть екран, щоб редагувати й побачити його у прев&apos;ю. У текстах працюють змінні{" "}
+              Отримувач гортає їх по черзі й сам обирає план, день, час і настрій. Клікніть екран, щоб редагувати й побачити його у прев&apos;ю. У текстах працюють змінні{" "}
               <code className="rounded bg-border/50 px-1">{"{name}"}</code> <code className="rounded bg-border/50 px-1">{"{author}"}</code>{" "}
-              <code className="rounded bg-border/50 px-1">{"{choice}"}</code> <code className="rounded bg-border/50 px-1">{"{date}"}</code>{" "}
+              <code className="rounded bg-border/50 px-1">{"{choice}"}</code> <code className="rounded bg-border/50 px-1">{"{when}"}</code>{" "}
+              <code className="rounded bg-border/50 px-1">{"{date}"}</code>{" "}
               <code className="rounded bg-border/50 px-1">{"{time}"}</code> <code className="rounded bg-border/50 px-1">{"{place}"}</code>.
             </p>
           </div>
@@ -306,6 +307,102 @@ function ScreenFields({ screen: s, onChange }: { screen: Screen; onChange: (patc
           <button type="button" onClick={() => onChange({ options: [...s.options, { emoji: "✨", label: "" }] } as Partial<Screen>)} disabled={s.options.length >= 8} className="btn-secondary mt-2 px-3 py-1.5 text-xs disabled:opacity-40">
             + Ще варіант
           </button>
+          <label className="mt-3 flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={s.allowCustom} onChange={(e) => onChange({ allowCustom: e.target.checked } as Partial<Screen>)} className="accent-brand" />
+            Дозволити запропонувати свій варіант
+          </label>
+        </div>
+      ) : null}
+
+      {s.type === "datepick" ? (
+        <div className="space-y-4 rounded-xl border border-dashed border-border p-3">
+          <div>
+            <p className="label">Які дні можна обрати</p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="radio" checked={s.dateMode === "any"} onChange={() => onChange({ dateMode: "any" } as Partial<Screen>)} className="accent-brand" />
+                Будь-який із найближчих
+              </label>
+              <input
+                type="number"
+                min={3}
+                max={60}
+                className="field w-20 py-1"
+                value={s.daysAhead}
+                onChange={(e) => onChange({ daysAhead: Math.min(60, Math.max(3, Number(e.target.value) || 3)) } as Partial<Screen>)}
+                disabled={s.dateMode !== "any"}
+              />
+              <span className="self-center text-muted">днів</span>
+            </div>
+            <label className="mt-2 flex items-center gap-2 text-sm">
+              <input type="radio" checked={s.dateMode === "list"} onChange={() => onChange({ dateMode: "list" } as Partial<Screen>)} className="accent-brand" />
+              Лише ці дати
+            </label>
+            {s.dateMode === "list" ? (
+              <div className="mt-2 space-y-2">
+                {s.dates.map((d, i) => (
+                  <div key={i} className="flex gap-2">
+                    <input type="date" className="field" value={d} onChange={(e) => onChange({ dates: s.dates.map((x, k) => (k === i ? e.target.value : x)) } as Partial<Screen>)} />
+                    <button type="button" onClick={() => onChange({ dates: s.dates.filter((_, k) => k !== i) } as Partial<Screen>)} className="btn-ghost px-2 text-red-600" aria-label="Видалити дату">✕</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onChange({ dates: [...s.dates, ""] } as Partial<Screen>)} disabled={s.dates.length >= 14} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40">
+                  + Дата
+                </button>
+                {s.dates.some((d) => !d) ? <p className="text-xs text-red-600">Заповніть або видаліть порожні дати.</p> : null}
+              </div>
+            ) : null}
+          </div>
+          <div>
+            <p className="label">Час</p>
+            <div className="flex flex-wrap gap-3 text-sm">
+              <label className="flex items-center gap-2">
+                <input type="radio" checked={s.timeMode === "slots"} onChange={() => onChange({ timeMode: "slots" } as Partial<Screen>)} className="accent-brand" />
+                Запропоновані варіанти
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="radio" checked={s.timeMode === "free"} onChange={() => onChange({ timeMode: "free" } as Partial<Screen>)} className="accent-brand" />
+                Будь-який час
+              </label>
+            </div>
+            {s.timeMode === "slots" ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {s.slots.map((slot, i) => (
+                  <div key={i} className="flex items-center gap-1">
+                    <input type="time" className="field w-auto py-1" value={slot} onChange={(e) => onChange({ slots: s.slots.map((x, k) => (k === i ? e.target.value : x)) } as Partial<Screen>)} />
+                    <button type="button" onClick={() => onChange({ slots: s.slots.filter((_, k) => k !== i) } as Partial<Screen>)} disabled={s.slots.length <= 1} className="btn-ghost px-1.5 text-red-600 disabled:opacity-30" aria-label="Видалити час">✕</button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onChange({ slots: [...s.slots, "18:00"] } as Partial<Screen>)} disabled={s.slots.length >= 12} className="btn-secondary px-3 py-1.5 text-xs disabled:opacity-40">
+                  + Час
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {s.type === "rating" ? (
+        <div>
+          <label className="label">Підписи шкали (від 1 до 5)</label>
+          <div className="grid gap-2 sm:grid-cols-5">
+            {s.labels.map((l, i) => (
+              <input key={i} className="field py-1.5 text-xs" value={l} maxLength={40} onChange={(e) => onChange({ labels: s.labels.map((x, k) => (k === i ? e.target.value : x)) } as Partial<Screen>)} aria-label={`Підпис ${i + 1}`} />
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {s.type === "input" ? (
+        <div className="space-y-3">
+          <div>
+            <label className="label">Підказка в полі</label>
+            <input className="field" value={s.placeholder} maxLength={120} onChange={(e) => onChange({ placeholder: e.target.value } as Partial<Screen>)} />
+          </div>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={s.required} onChange={(e) => onChange({ required: e.target.checked } as Partial<Screen>)} className="accent-brand" />
+            Обов&apos;язково заповнити
+          </label>
         </div>
       ) : null}
 

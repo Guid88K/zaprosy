@@ -1,14 +1,17 @@
 import { z } from "zod";
 import { formatEventDate } from "./format";
 
-export const screenTypes = ["intro", "question", "choice", "details", "media", "final"] as const;
+export const screenTypes = ["intro", "question", "choice", "datepick", "rating", "input", "details", "media", "final"] as const;
 export type ScreenType = (typeof screenTypes)[number];
 
 export const screenTypeMeta: Record<ScreenType, { name: string; emoji: string; hint: string }> = {
   intro: { name: "Привітання", emoji: "👋", hint: "Перший екран: заголовок, кілька слів і кнопка «Далі»" },
   question: { name: "Питання так/ні", emoji: "💌", hint: "Головне питання з кнопками. Поведінка «ні» задається нижче" },
-  choice: { name: "Вибір варіанта", emoji: "🎯", hint: "Отримувач обирає активність, місце чи час з ваших варіантів" },
-  details: { name: "Коли й де", emoji: "📍", hint: "Показує дату, час і місце з полів запрошення" },
+  choice: { name: "Вибір плану", emoji: "🎯", hint: "Отримувач обирає з ваших варіантів або пропонує свій" },
+  datepick: { name: "Вибір дати й часу", emoji: "📅", hint: "Отримувач сам обирає зручний день і час із тих, що ви дозволили" },
+  rating: { name: "Шкала настрою", emoji: "🔥", hint: "Отримувач оцінює, наскільки хоче піти: від «ну таке» до «не можу дочекатися»" },
+  input: { name: "Відкрите питання", emoji: "✍️", hint: "Отримувач пише відповідь текстом: контакт, побажання, що взяти" },
+  details: { name: "Коли й де (задано вами)", emoji: "📍", hint: "Показує дату, час і місце з розділу «Основне», без вибору" },
   media: { name: "Фото або GIF", emoji: "🖼️", hint: "Картинка за посиланням із підписом" },
   final: { name: "Фінал", emoji: "🎉", hint: "Що побачить після відповіді. Є окремий текст для «ні»" },
 };
@@ -50,6 +53,41 @@ export const screenSchema = z.discriminatedUnion("type", [
       )
       .min(2, "Потрібно хоча б два варіанти")
       .max(8),
+    allowCustom: z.boolean().default(true),
+    button,
+  }),
+  z.object({
+    id,
+    type: z.literal("datepick"),
+    title,
+    text,
+    imageUrl,
+    /** any: будь-який день із найближчих daysAhead; list: лише дати з dates */
+    dateMode: z.enum(["any", "list"]).default("any"),
+    daysAhead: z.number().int().min(3).max(60).default(14),
+    dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(14).default([]),
+    /** slots: лише запропонований час; free: отримувач вводить час сам */
+    timeMode: z.enum(["slots", "free"]).default("slots"),
+    slots: z.array(z.string().regex(/^\d{2}:\d{2}$/)).max(12).default(["12:00", "15:00", "19:00"]),
+    button,
+  }),
+  z.object({
+    id,
+    type: z.literal("rating"),
+    title,
+    text,
+    imageUrl,
+    labels: z.array(z.string().trim().min(1).max(40)).length(5).default(["Ну таке", "Норм", "Цікаво", "Дуже хочу", "Не можу дочекатися"]),
+    button,
+  }),
+  z.object({
+    id,
+    type: z.literal("input"),
+    title,
+    text,
+    imageUrl,
+    placeholder: z.string().trim().max(120).default(""),
+    required: z.boolean().default(false),
     button,
   }),
   z.object({ id, type: z.literal("details"), title, text, imageUrl, button }),
@@ -94,6 +132,42 @@ export function newScreen(type: ScreenType): Screen {
           { emoji: "🎬", label: "Кіно" },
           { emoji: "🚶", label: "Прогулянка" },
         ],
+        allowCustom: true,
+        button: "Далі",
+      };
+    case "datepick":
+      return {
+        id: sid,
+        type,
+        title: "Коли тобі зручно?",
+        text: "Обери день і час, а решту я організую.",
+        imageUrl: "",
+        dateMode: "any",
+        daysAhead: 14,
+        dates: [],
+        timeMode: "slots",
+        slots: ["12:00", "15:00", "19:00"],
+        button: "Підтвердити",
+      };
+    case "rating":
+      return {
+        id: sid,
+        type,
+        title: "Наскільки хочеш піти?",
+        text: "",
+        imageUrl: "",
+        labels: ["Ну таке", "Норм", "Цікаво", "Дуже хочу", "Не можу дочекатися"],
+        button: "Далі",
+      };
+    case "input":
+      return {
+        id: sid,
+        type,
+        title: "Щось додати?",
+        text: "Побажання, алергії, улюблена музика — усе, що мені варто знати.",
+        imageUrl: "",
+        placeholder: "Напиши тут…",
+        required: false,
         button: "Далі",
       };
     case "details":
@@ -105,7 +179,7 @@ export function newScreen(type: ScreenType): Screen {
         id: sid,
         type,
         title: "Ура! 🎉",
-        text: "{name}, ти обрав(ла) «{choice}». {author} уже знає й чекає зустрічі!",
+        text: "{name}, домовились: {choice}, {when}. {author} уже знає й чекає зустрічі!",
         imageUrl: "",
         noTitle: "Шкода 💙",
         noText: "Дякую за чесну відповідь. Можливо, іншим разом.",
@@ -115,7 +189,7 @@ export function newScreen(type: ScreenType): Screen {
 
 /** Стартовий набір екранів для нового запрошення. */
 export function defaultScreens(): Screen[] {
-  return [newScreen("intro"), newScreen("question"), newScreen("choice"), newScreen("details"), newScreen("final")];
+  return [newScreen("intro"), newScreen("question"), newScreen("choice"), newScreen("datepick"), newScreen("rating"), newScreen("final")];
 }
 
 type LegacyFields = {
@@ -165,11 +239,16 @@ export function ensureFinal(screens: Screen[]): Screen[] {
 export type ScreenVars = {
   name: string;
   author: string;
+  /** усе, що отримувач обрав на екранах «Вибір плану» */
   choice: string;
+  /** день і час з екрана «Вибір дати й часу» */
+  when: string;
   date: string;
   time: string;
   place: string;
 };
+
+export type Choice = { screen: string; value: string; kind?: ScreenType };
 
 export function buildVars(ctx: {
   recipientName: string;
@@ -177,12 +256,15 @@ export function buildVars(ctx: {
   eventDate: string | null;
   eventTime: string | null;
   place: string | null;
-  choices: { screen: string; value: string }[];
+  choices: Choice[];
 }): ScreenVars {
+  const picks = ctx.choices.filter((c) => c.kind === "choice" || c.kind === undefined).map((c) => c.value);
+  const when = ctx.choices.find((c) => c.kind === "datepick")?.value ?? "";
   return {
     name: ctx.recipientName,
     author: ctx.authorName,
-    choice: ctx.choices.map((c) => c.value).join(", "),
+    choice: picks.join(", "),
+    when,
     date: formatEventDate(ctx.eventDate, null) ?? "",
     time: ctx.eventTime ?? "",
     place: ctx.place ?? "",
@@ -191,7 +273,7 @@ export function buildVars(ctx: {
 
 /** Підставляє {name}, {author}, {choice}, {date}, {time}, {place}. */
 export function renderVars(template: string, vars: ScreenVars): string {
-  return template.replace(/\{(name|author|choice|date|time|place)\}/g, (_, key: keyof ScreenVars) => vars[key] ?? "");
+  return template.replace(/\{(name|author|choice|when|date|time|place)\}/g, (_, key: keyof ScreenVars) => vars[key] ?? "");
 }
 
 export const noModes = ["allow", "runaway", "shrink", "multiply"] as const;

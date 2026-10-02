@@ -65,7 +65,13 @@ export const responseSchema = z.object({
   slug: z.string().trim().min(1),
   answer: z.enum(["yes", "no"]),
   choices: z
-    .array(z.object({ screen: z.string().trim().max(160), value: z.string().trim().max(200) }))
+    .array(
+      z.object({
+        screen: z.string().trim().max(160),
+        value: z.string().trim().max(300),
+        kind: z.enum(["choice", "datepick", "rating", "input"]).optional(),
+      }),
+    )
     .max(12)
     .default([]),
 });
