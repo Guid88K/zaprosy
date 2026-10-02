@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Запроси 💌
 
-## Getting Started
+Український аналог invitik: сервіс інтерактивних запрошень на побачення. Автор збирає запрошення за дві хвилини, надсилає одне посилання в месенджер, а отримувач відповідає «Так» чи «Ні» прямо на сторінці. Відповідь зберігається в кабінеті автора й надсилається йому в Telegram або на email.
 
-First, run the development server:
+## Можливості
+
+- 6 шаблонів дизайну (романтика, нічне небо, захід сонця, квітучий сад, мінімалізм, синьо-жовте)
+- Конструктор із live-прев'ю: ім'я, питання, повідомлення, дата, час, місце
+- Публічна сторінка `/i/<slug>` без реєстрації для отримувача, адаптована до телефону й темної теми
+- Відповідь так/ні з коментарем, кнопки «поділитися» в Telegram, Viber, WhatsApp
+- Кабінет автора: реєстрація, вхід, список запрошень, історія відповідей, видалення
+- Сповіщення про відповідь у Telegram (бот) та на email (SMTP)
+- Сервіс безкоштовний; за бажанням показується кнопка донату «Підтримати проєкт»
+
+## Стек
+
+Next.js 16 (App Router, Server Actions), React 19, TypeScript, Tailwind CSS 4, Drizzle ORM, SQLite через `@libsql/client` (легко перемкнути на Turso або Postgres), сесії на `jose` (JWT в httpOnly cookie), паролі через `bcryptjs`.
+
+## Запуск
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
+cp .env.example .env        # за бажанням задайте AUTH_SECRET, Telegram і SMTP
+pnpm dev                    # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Міграції застосовуються автоматично під час першого запиту до бази. Файл бази створюється в `data/zaprosy.db`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Змінні оточення
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Змінна | Призначення |
+| --- | --- |
+| `AUTH_SECRET` | Секрет для підпису сесій. Обов'язковий у production. `openssl rand -base64 32` |
+| `DATABASE_URL` | `file:./data/zaprosy.db` за замовчуванням або `libsql://...` для Turso |
+| `DATABASE_AUTH_TOKEN` | Токен Turso, якщо використовується |
+| `NEXT_PUBLIC_APP_URL` | Публічна адреса сайту для посилань у сповіщеннях |
+| `NEXT_PUBLIC_SUPPORT_URL` | Посилання на донат (Buy Me a Coffee, monobank Банка). Якщо порожнє, кнопка «Підтримати проєкт» прихована |
+| `TELEGRAM_BOT_TOKEN` | Токен бота від @BotFather. Користувач вказує свій chat ID у налаштуваннях |
+| `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`, `SMTP_FROM` | Надсилання листів |
 
-## Learn More
+Якщо канали не налаштовані, текст сповіщення виводиться в консоль сервера.
 
-To learn more about Next.js, take a look at the following resources:
+## Команди
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev          # розробка
+pnpm build        # production-збірка
+pnpm start        # запуск збірки
+pnpm lint         # ESLint
+pnpm db:generate  # згенерувати міграцію після зміни src/db/schema.ts
+pnpm db:studio    # Drizzle Studio для перегляду бази
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Структура
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/app/                 сторінки (landing, login, register, dashboard/*, i/[slug])
+src/components/          UI: InvitationCard, InvitationForm, ResponseForm, ...
+src/lib/actions/         Server Actions: auth, invitations
+src/lib/auth.ts          сесії та паролі
+src/lib/notify.ts        Telegram і email
+src/lib/templates.ts     шаблони дизайну
+src/db/                  схема Drizzle і підключення
+drizzle/                 SQL-міграції
+```

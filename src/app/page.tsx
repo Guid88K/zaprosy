@@ -1,69 +1,132 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getCurrentUser } from "@/lib/auth";
+import { InvitationCard } from "@/components/InvitationCard";
+import { templates } from "@/lib/templates";
+import { SupportLink } from "@/components/SupportLink";
 
-export default function Home() {
+const steps = [
+  { n: "1", title: "Обери дизайн", text: "Шість стилів: від романтики до мінімалізму. Пишеш ім'я, питання й пару слів від себе." },
+  { n: "2", title: "Надішли посилання", text: "Одне коротке посилання в Telegram, Viber чи Instagram. Без реєстрації для отримувача." },
+  { n: "3", title: "Отримай відповідь", text: "Так чи ні, з коментарем. Сповіщення прийде в Telegram або на пошту, а історія буде в кабінеті." },
+];
+
+export default async function HomePage() {
+  const user = await getCurrentUser();
+  const demo = templates[0];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+    <main>
+      <header className="mx-auto flex max-w-6xl items-center justify-between px-4 py-5">
+        <Link href="/" className="font-serif text-2xl font-semibold tracking-tight">
+          Запроси <span aria-hidden>💌</span>
+        </Link>
+        <nav className="flex items-center gap-2">
+          {user ? (
+            <Link href="/dashboard" className="btn-primary">
+              Мій кабінет
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="btn-ghost">
+                Увійти
+              </Link>
+              <Link href="/register" className="btn-primary">
+                Створити запрошення
+              </Link>
+            </>
+          )}
+        </nav>
+      </header>
+
+      <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-12 lg:grid-cols-2 lg:py-20">
+        <div>
+          <p className="inline-flex items-center gap-2 rounded-full bg-brand-soft px-3 py-1 text-sm font-medium text-brand">
+            Українська альтернатива сервісам запрошень
           </p>
+          <h1 className="mt-5 text-balance font-serif text-4xl font-semibold leading-tight sm:text-6xl">
+            Запроси на побачення одним посиланням
+          </h1>
+          <p className="mt-5 max-w-xl text-pretty text-lg text-muted">
+            Збери тепле інтерактивне запрошення за дві хвилини, надішли його в месенджер і дізнайся відповідь одразу, щойно людина натисне «Так».
+          </p>
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href={user ? "/dashboard/new" : "/register"} className="btn-primary px-6 py-3 text-base">
+              Створити безкоштовно
+            </Link>
+            <a href="#how" className="btn-secondary px-6 py-3 text-base">
+              Як це працює
+            </a>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+
+        <div className="animate-float-in rounded-3xl p-6 shadow-2xl sm:p-10" style={{ background: demo.page }}>
+          <InvitationCard
+            template={demo}
+            data={{
+              recipientName: "Оленко",
+              question: "Підеш зі мною на побачення?",
+              message: "Обіцяю смачну каву, теплий плед і жодних незручних пауз.",
+              eventDate: "2026-10-10",
+              eventTime: "19:00",
+              place: "Кав'ярня на Подолі",
+            }}
+            compact
           >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+            <div className="grid grid-cols-2 gap-3 font-sans" aria-hidden>
+              <div className="rounded-xl py-2.5 text-center text-sm font-semibold" style={{ background: demo.accent, color: demo.accentText }}>
+                Так! 💛
+              </div>
+              <div className="rounded-xl border py-2.5 text-center text-sm font-semibold" style={{ borderColor: demo.border, color: demo.muted }}>
+                На жаль, ні
+              </div>
+            </div>
+          </InvitationCard>
         </div>
-      </main>
-    </div>
+      </section>
+
+      <section id="how" className="border-y border-border bg-card/60">
+        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-16 md:grid-cols-3">
+          {steps.map((s) => (
+            <div key={s.n}>
+              <div className="flex size-10 items-center justify-center rounded-full bg-brand font-serif text-lg font-semibold text-white">
+                {s.n}
+              </div>
+              <h2 className="mt-4 text-xl font-semibold">{s.title}</h2>
+              <p className="mt-2 text-muted">{s.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-16">
+        <h2 className="text-center font-serif text-3xl font-semibold">Обери свій настрій</h2>
+        <p className="mt-2 text-center text-muted">Кожен шаблон адаптований до телефону й виглядає добре в темній темі.</p>
+        <div className="mt-10 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {templates.map((t) => (
+            <div key={t.id} className="overflow-hidden rounded-2xl border border-border bg-card">
+              <div className="flex aspect-[4/5] items-center justify-center text-4xl" style={{ background: t.page }}>
+                {t.emoji}
+              </div>
+              <div className="p-3">
+                <div className="font-medium">{t.name}</div>
+                <div className="mt-0.5 text-xs text-muted">{t.description}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-sm text-muted">
+          <span>Запроси · зроблено в Україні 💙💛</span>
+          <div className="flex items-center gap-4">
+            <SupportLink variant="text" />
+            <Link href={user ? "/dashboard/new" : "/register"} className="font-medium text-brand hover:underline">
+              Створити запрошення
+            </Link>
+          </div>
+        </div>
+      </footer>
+    </main>
   );
 }
