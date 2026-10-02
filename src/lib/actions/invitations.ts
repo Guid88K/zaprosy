@@ -64,6 +64,19 @@ export async function deleteInvitation(formData: FormData): Promise<void> {
   redirect("/dashboard");
 }
 
+export async function setNoMode(formData: FormData): Promise<void> {
+  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  const noMode = formData.get("noMode") === "runaway" ? "runaway" : "allow";
+  if (!id) return;
+  const db = await getDb();
+  await db
+    .update(invitations)
+    .set({ noMode })
+    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)));
+  revalidatePath(`/dashboard/${id}`);
+}
+
 export async function updateSettings(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const parsed = settingsSchema.safeParse({

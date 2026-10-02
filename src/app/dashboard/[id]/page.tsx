@@ -7,6 +7,7 @@ import { invitations } from "@/db/schema";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DeleteInvitationButton } from "@/components/DeleteInvitationButton";
 import { InvitationCard } from "@/components/InvitationCard";
+import { NoModeToggle } from "@/components/NoModeToggle";
 import { SupportLink } from "@/components/SupportLink";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime, pluralUk } from "@/lib/format";
@@ -69,6 +70,8 @@ export default async function InvitationDetailPage({ params }: Props) {
             </div>
           ) : null}
         </section>
+
+        <NoModeToggle id={inv.id} noMode={inv.noMode} />
 
         <section className="card">
           <h2 className="font-semibold">
