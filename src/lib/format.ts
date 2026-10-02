@@ -1,36 +1,25 @@
-export function formatEventDate(date: string | null, time: string | null): string | null {
+import { fmt, getDictionary, type Locale } from "./i18n";
+
+export function formatEventDate(date: string | null, time: string | null, locale: Locale = "uk"): string | null {
   if (!date && !time) return null;
+  const d = getDictionary(locale);
   const parts: string[] = [];
   if (date) {
-    const d = new Date(`${date}T00:00:00`);
-    if (!Number.isNaN(d.getTime())) {
-      parts.push(
-        new Intl.DateTimeFormat("uk-UA", {
-          weekday: "long",
-          day: "numeric",
-          month: "long",
-        }).format(d),
-      );
+    const parsed = new Date(`${date}T00:00:00`);
+    if (!Number.isNaN(parsed.getTime())) {
+      parts.push(new Intl.DateTimeFormat(d.intl, { weekday: "long", day: "numeric", month: "long" }).format(parsed));
     }
   }
-  if (time) parts.push(`о ${time}`);
+  if (time) parts.push(fmt(d.time.at, { time }));
   return parts.join(", ");
 }
 
-export function formatDateTime(d: Date): string {
-  return new Intl.DateTimeFormat("uk-UA", {
+export function formatDateTime(date: Date, locale: Locale = "uk"): string {
+  return new Intl.DateTimeFormat(getDictionary(locale).intl, {
     day: "numeric",
     month: "short",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(d);
-}
-
-export function pluralUk(n: number, one: string, few: string, many: string): string {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod10 === 1 && mod100 !== 11) return one;
-  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 10 || mod100 >= 20)) return few;
-  return many;
+  }).format(date);
 }

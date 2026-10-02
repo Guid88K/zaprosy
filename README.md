@@ -13,6 +13,7 @@
 - Відповідь із вибраними варіантами й коментарем, кнопки «поділитися» в Telegram, Viber, WhatsApp
 - Кабінет автора: реєстрація, вхід, список запрошень, редагування екранів, зміна режиму «ні», історія відповідей, видалення
 - Сповіщення про відповідь у Telegram (бот) та на email (SMTP)
+- Дві мови інтерфейсу: українська та англійська (cookie + Accept-Language, перемикач у шапці). Мова запрошення обирається окремо: отримувач бачить кнопки, дати й підказки своєю мовою
 - Сервіс безкоштовний; за бажанням показується кнопка донату «Підтримати проєкт»
 
 ## Стек
@@ -60,6 +61,7 @@ pnpm db:studio    # Drizzle Studio для перегляду бази
 src/app/                 сторінки (landing, login, register, dashboard/*, i/[slug])
 src/components/          UI: InvitationForm (конструктор), InvitationPlayer (плеєр), YesNoButtons, Hearts, ...
 src/lib/screens.ts       модель екранів: типи, валідація, дефолти, змінні
+src/lib/i18n/            словники uk/en, визначення мови (cookie, Accept-Language), провайдер для клієнта
 src/lib/actions/         Server Actions: auth, invitations
 src/lib/auth.ts          сесії та паролі
 src/lib/notify.ts        Telegram і email

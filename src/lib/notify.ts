@@ -1,6 +1,7 @@
 import "server-only";
 import nodemailer from "nodemailer";
 import type { Invitation, Response, User } from "@/db/schema";
+import { fmt, getDictionary, isLocale } from "@/lib/i18n";
 
 type NotifyPayload = {
   author: User;
@@ -16,22 +17,24 @@ export function notificationChannels() {
   };
 }
 
-function buildText({ invitation, response, manageUrl }: NotifyPayload): string {
-  const verdict = response.answer === "yes" ? "ТАК 🎉" : "Ні 😔";
-  const lines = [
-    `💌 ${invitation.recipientName} відповів(ла) на запрошення: ${verdict}`,
-    `Питання: «${invitation.question}»`,
-  ];
+function dictFor(author: User) {
+  return getDictionary(isLocale(author.locale) ? author.locale : "uk");
+}
+
+function buildText({ author, invitation, response, manageUrl }: NotifyPayload): string {
+  const n = dictFor(author).notify;
+  const verdict = response.answer === "yes" ? n.yes : n.no;
+  const lines = [fmt(n.answered, { name: invitation.recipientName, verdict }), fmt(n.question, { question: invitation.question })];
   if (response.choices) {
     try {
       const picks = JSON.parse(response.choices) as { screen: string; value: string }[];
-      for (const p of picks) lines.push(`${p.screen || "Вибір"}: ${p.value}`);
+      for (const p of picks) lines.push(`${p.screen || n.choiceFallback}: ${p.value}`);
     } catch {
       /* ігноруємо зламаний JSON */
     }
   }
-  if (response.comment) lines.push(`Коментар: ${response.comment}`);
-  lines.push("", `Деталі: ${manageUrl}`);
+  if (response.comment) lines.push(fmt(n.comment, { comment: response.comment }));
+  lines.push("", fmt(n.details, { url: manageUrl }));
   return lines.join("\n");
 }
 
@@ -71,10 +74,8 @@ async function sendEmail(to: string, subject: string, text: string): Promise<voi
 export async function notifyAuthor(payload: NotifyPayload): Promise<void> {
   const { author, invitation, response } = payload;
   const text = buildText(payload);
-  const subject =
-    response.answer === "yes"
-      ? `🎉 ${invitation.recipientName} сказав(ла) ТАК!`
-      : `${invitation.recipientName} відповів(ла) на запрошення`;
+  const n = dictFor(author).notify;
+  const subject = fmt(response.answer === "yes" ? n.subjectYes : n.subjectAnswered, { name: invitation.recipientName });
 
   const jobs: Promise<void>[] = [];
   if (author.telegramChatId) jobs.push(sendTelegram(author.telegramChatId, text));

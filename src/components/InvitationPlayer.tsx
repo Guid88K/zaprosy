@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { addResponseComment, submitResponse } from "@/lib/actions/invitations";
 import { formatEventDate } from "@/lib/format";
+import { fmt, getDictionary, type Locale } from "@/lib/i18n";
 import { buildVars, renderVars, type Choice, type NoModeId, type Screen, type ScreenOf, type ScreenType } from "@/lib/screens";
 import { fontClassByKey, type Template } from "@/lib/templates";
 import { Hearts } from "./Hearts";
@@ -22,6 +23,8 @@ type Props = {
   screens: Screen[];
   context: PlayerContext;
   noMode: NoModeId;
+  /** Мова запрошення: кнопки, дати й підказки для отримувача */
+  locale: Locale;
   /** live: справжнє запрошення з надсиланням відповіді; preview: конструктор, без запитів */
   mode: "live" | "preview";
   previewIndex?: number;
@@ -40,11 +43,14 @@ export function InvitationPlayer({
   screens,
   context,
   noMode,
+  locale,
   mode,
   previewIndex,
   onPreviewIndexChange,
   compact = false,
 }: Props) {
+  const d = getDictionary(locale).player;
+  const CUSTOM = d.custom;
   const [liveIndex, setLiveIndex] = useState(0);
   const [answer, setAnswer] = useState<"yes" | "no" | null>(null);
   const [picksById, setPicksById] = useState<Record<string, Choice>>({});
@@ -93,30 +99,30 @@ export function InvitationPlayer({
 
   function pick(s: ScreenOf<"choice">, label: string) {
     setPicked((p) => ({ ...p, [s.id]: label }));
-    if (label !== CUSTOM) record(s, label, "choice", "Вибір");
+    if (label !== CUSTOM) record(s, label, "choice", d.recordScreens.choice);
   }
 
   function pickCustom(s: ScreenOf<"choice">, text: string) {
     setCustomText((m) => ({ ...m, [s.id]: text }));
-    if (text.trim()) record(s, text.trim(), "choice", "Вибір");
+    if (text.trim()) record(s, text.trim(), "choice", d.recordScreens.choice);
   }
 
   function pickDate(s: ScreenOf<"datepick">, patch: { date?: string; time?: string }) {
     const next = { ...dateSel[s.id], ...patch };
     setDateSel((m) => ({ ...m, [s.id]: next }));
     if (next.date && next.time) {
-      record(s, formatEventDate(next.date, next.time) ?? `${next.date} ${next.time}`, "datepick", "Коли");
+      record(s, formatEventDate(next.date, next.time, locale) ?? `${next.date} ${next.time}`, "datepick", d.recordScreens.when);
     }
   }
 
   function pickRating(s: ScreenOf<"rating">, i: number) {
     setPicked((p) => ({ ...p, [s.id]: String(i) }));
-    record(s, `${ratingEmojis[i]} ${s.labels[i]} (${i + 1}/5)`, "rating", "Настрій");
+    record(s, `${ratingEmojis[i]} ${s.labels[i]} (${i + 1}/5)`, "rating", d.recordScreens.mood);
   }
 
   function typeInput(s: ScreenOf<"input">, text: string) {
     setFreeText((m) => ({ ...m, [s.id]: text }));
-    if (text.trim()) record(s, text.trim(), "input", "Відповідь");
+    if (text.trim()) record(s, text.trim(), "input", d.recordScreens.answer);
     else setPicksById((m) => { const n = { ...m }; delete n[s.id]; return n; });
   }
 
@@ -129,8 +135,8 @@ export function InvitationPlayer({
     setSubmission({ status: "sending" });
     submitResponse({ slug: context.slug, answer: answer ?? "yes", choices })
       .then((r) => setSubmission(r.ok ? { status: "done", responseId: r.responseId } : { status: "error", error: r.error }))
-      .catch(() => setSubmission({ status: "error", error: "Не вдалося надіслати відповідь. Спробуй оновити сторінку." }));
-  }, [screen, answer, choices, context.slug, preview]);
+      .catch(() => setSubmission({ status: "error", error: d.sendError }));
+  }, [screen, answer, choices, context.slug, preview, d.sendError]);
 
   async function sendComment() {
     if (submission.status !== "done" || !comment.trim()) return;
@@ -139,7 +145,7 @@ export function InvitationPlayer({
     setCommentState(r.ok ? "done" : "error");
   }
 
-  const vars = buildVars({ ...context, choices });
+  const vars = buildVars({ ...context, choices, locale });
   const txt = (s: string) => renderVars(s, vars);
   const font = fontClassByKey[t.font];
   const scriptFont = t.font === "script";
@@ -152,7 +158,7 @@ export function InvitationPlayer({
   const btnStyle = { background: t.accent, color: t.accentText } as const;
 
   if (!screen) {
-    return <p className="text-center text-sm text-muted">Додайте хоча б один екран.</p>;
+    return <p className="text-center text-sm text-muted">{d.noScreens}</p>;
   }
 
   const Image = screen.imageUrl ? (
@@ -213,7 +219,7 @@ export function InvitationPlayer({
           {screen.type === "question" ? (
             <>
               <p className={`${scriptFont ? "text-2xl" : "text-sm uppercase tracking-[0.2em]"}`} style={{ color: t.muted }}>
-                {context.recipientName},
+                {fmt(d.recipientComma, { name: context.recipientName })}
               </p>
               {Image ? <div className="mt-4">{Image}</div> : null}
               <div className="mt-2">
@@ -228,6 +234,7 @@ export function InvitationPlayer({
                   onYes={handleYes}
                   onNo={handleNo}
                   compact={compact}
+                  locale={locale}
                 />
               </div>
             </>
@@ -265,7 +272,7 @@ export function InvitationPlayer({
                 <input
                   className="mt-3 w-full rounded-xl border bg-white/60 px-3.5 py-2.5 font-sans text-sm outline-none focus:ring-2 dark:bg-black/20"
                   style={{ borderColor: t.border, color: t.text }}
-                  placeholder="Напиши свій варіант…"
+                  placeholder={d.customPlaceholder}
                   value={customText[screen.id] ?? ""}
                   onChange={(e) => pickCustom(screen, e.target.value)}
                   maxLength={120}
@@ -290,15 +297,15 @@ export function InvitationPlayer({
               {heading(screen.title, screen.text)}
               <div className="mt-6 space-y-5 font-sans text-left">
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wider opacity-70">День</p>
+                  <p className="mb-2 text-xs uppercase tracking-wider opacity-70">{d.day}</p>
                   <div className="flex max-h-44 flex-wrap gap-2 overflow-y-auto pr-1">
-                    {dayOptions(screen).map((d) => {
-                      const sel = dateSel[screen.id]?.date === d.iso;
+                    {dayOptions(screen, locale).map((day) => {
+                      const sel = dateSel[screen.id]?.date === day.iso;
                       return (
                         <button
-                          key={d.iso}
+                          key={day.iso}
                           type="button"
-                          onClick={() => pickDate(screen, { date: d.iso })}
+                          onClick={() => pickDate(screen, { date: day.iso })}
                           className="rounded-xl border px-3 py-2 text-left text-sm transition hover:-translate-y-0.5"
                           style={{
                             borderColor: sel ? t.accent : t.border,
@@ -306,15 +313,15 @@ export function InvitationPlayer({
                             color: sel ? t.accentText : t.text,
                           }}
                         >
-                          <span className="block text-[10px] uppercase tracking-wider opacity-70">{d.weekday}</span>
-                          <span className="font-semibold">{d.label}</span>
+                          <span className="block text-[10px] uppercase tracking-wider opacity-70">{day.weekday}</span>
+                          <span className="font-semibold">{day.label}</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
                 <div>
-                  <p className="mb-2 text-xs uppercase tracking-wider opacity-70">Час</p>
+                  <p className="mb-2 text-xs uppercase tracking-wider opacity-70">{d.time}</p>
                   {screen.timeMode === "slots" ? (
                     <div className="flex flex-wrap gap-2">
                       {screen.slots.map((slot) => {
@@ -405,7 +412,7 @@ export function InvitationPlayer({
               <textarea
                 className="mt-5 min-h-24 w-full resize-y rounded-xl border bg-white/60 px-3.5 py-2.5 font-sans text-sm outline-none focus:ring-2 dark:bg-black/20"
                 style={{ borderColor: t.border, color: t.text }}
-                placeholder={screen.placeholder || "Напиши тут…"}
+                placeholder={screen.placeholder || d.writeHere}
                 value={freeText[screen.id] ?? ""}
                 onChange={(e) => typeInput(screen, e.target.value)}
                 maxLength={300}
@@ -426,7 +433,7 @@ export function InvitationPlayer({
             <>
               {Image}
               {heading(screen.title, screen.text)}
-              <DetailsBlock t={t} context={context} compact={compact} />
+              <DetailsBlock t={t} context={context} compact={compact} locale={locale} />
               <button type="button" onClick={goNext} className={`${btnClass} mt-7`} style={btnStyle}>
                 {screen.button}
               </button>
@@ -448,7 +455,7 @@ export function InvitationPlayer({
                 <div className="mt-7 font-sans text-left">
                   {submission.status === "sending" ? (
                     <p className="text-center text-sm" style={{ color: t.muted }}>
-                      Надсилаю відповідь…
+                      {d.sending}
                     </p>
                   ) : null}
                   {submission.status === "error" ? (
@@ -457,14 +464,14 @@ export function InvitationPlayer({
                   {submission.status === "done" && commentState !== "done" ? (
                     <div className="space-y-3">
                       <label htmlFor="comment" className="block text-sm font-medium">
-                        Хочеш щось додати для {context.authorName}?
+                        {fmt(d.addSomething, { author: context.authorName })}
                       </label>
                       <textarea
                         id="comment"
                         value={comment}
                         onChange={(e) => setComment(e.target.value)}
                         maxLength={500}
-                        placeholder={answer === "no" ? "Дякую, але…" : "Чекатиму з нетерпінням!"}
+                        placeholder={answer === "no" ? d.commentNo : d.commentYes}
                         className="min-h-24 w-full resize-y rounded-xl border bg-white/60 px-3.5 py-2.5 text-sm outline-none focus:ring-2 dark:bg-black/20"
                         style={{ borderColor: t.border, color: t.text }}
                       />
@@ -475,18 +482,18 @@ export function InvitationPlayer({
                         className="btn w-full shadow-md disabled:opacity-50"
                         style={{ background: t.text, color: t.dark ? "#0f172a" : "#ffffff" }}
                       >
-                        {commentState === "sending" ? "Надсилаю…" : "Надіслати"}
+                        {commentState === "sending" ? d.sendingShort : d.send}
                       </button>
-                      {commentState === "error" ? <p className="text-sm text-red-600">Не вдалося надіслати коментар.</p> : null}
+                      {commentState === "error" ? <p className="text-sm text-red-600">{d.commentError}</p> : null}
                     </div>
                   ) : null}
                   {commentState === "done" ? (
-                    <p className="animate-pop text-center text-sm font-medium">Передано! 💌</p>
+                    <p className="animate-pop text-center text-sm font-medium">{d.sent}</p>
                   ) : null}
                 </div>
               ) : (
                 <p className="mt-6 font-sans text-xs" style={{ color: t.muted }}>
-                  Тут отримувач зможе дописати коментар. Відповідь уже буде у вашому кабінеті.
+                  {d.previewNote}
                 </p>
               )}
             </>
@@ -497,11 +504,11 @@ export function InvitationPlayer({
   );
 }
 
-const CUSTOM = "Своє";
 const ratingEmojis = ["😐", "🙂", "😊", "😍", "🔥"];
 
 /** Варіанти днів для екрана вибору дати: найближчі N днів або список автора. */
-function dayOptions(s: ScreenOf<"datepick">): { iso: string; weekday: string; label: string }[] {
+function dayOptions(s: ScreenOf<"datepick">, locale: Locale): { iso: string; weekday: string; label: string }[] {
+  const intl = getDictionary(locale).intl;
   const isoList: string[] = [];
   if (s.dateMode === "list" && s.dates.length) {
     isoList.push(...s.dates);
@@ -512,20 +519,21 @@ function dayOptions(s: ScreenOf<"datepick">): { iso: string; weekday: string; la
       isoList.push(`${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`);
     }
   }
-  const wd = new Intl.DateTimeFormat("uk-UA", { weekday: "short" });
-  const dm = new Intl.DateTimeFormat("uk-UA", { day: "numeric", month: "short" });
+  const wd = new Intl.DateTimeFormat(intl, { weekday: "short" });
+  const dm = new Intl.DateTimeFormat(intl, { day: "numeric", month: "short" });
   return isoList.map((iso) => {
     const date = new Date(`${iso}T00:00:00`);
     return { iso, weekday: wd.format(date), label: dm.format(date) };
   });
 }
 
-function DetailsBlock({ t, context, compact }: { t: Template; context: PlayerContext; compact: boolean }) {
-  const when = formatEventDate(context.eventDate, context.eventTime);
+function DetailsBlock({ t, context, compact, locale }: { t: Template; context: PlayerContext; compact: boolean; locale: Locale }) {
+  const d = getDictionary(locale).player;
+  const when = formatEventDate(context.eventDate, context.eventTime, locale);
   if (!when && !context.place) {
     return (
       <p className="mt-5 font-sans text-sm" style={{ color: t.muted }}>
-        Дату й місце домовимо разом 😉
+        {d.noDetails}
       </p>
     );
   }
@@ -538,7 +546,7 @@ function DetailsBlock({ t, context, compact }: { t: Template; context: PlayerCon
         <div className="flex items-start gap-3">
           <span aria-hidden>📅</span>
           <div>
-            <dt className="text-xs uppercase tracking-wider opacity-70">Коли</dt>
+            <dt className="text-xs uppercase tracking-wider opacity-70">{d.when}</dt>
             <dd className="font-medium first-letter:uppercase">{when}</dd>
           </div>
         </div>
@@ -547,7 +555,7 @@ function DetailsBlock({ t, context, compact }: { t: Template; context: PlayerCon
         <div className="flex items-start gap-3">
           <span aria-hidden>📍</span>
           <div>
-            <dt className="text-xs uppercase tracking-wider opacity-70">Де</dt>
+            <dt className="text-xs uppercase tracking-wider opacity-70">{d.where}</dt>
             <dd className="font-medium">{context.place}</dd>
           </div>
         </div>

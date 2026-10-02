@@ -1,195 +1,185 @@
 import { z } from "zod";
 import { formatEventDate } from "./format";
+import { fmt, getDictionary, type Dict, type Locale } from "./i18n";
 
 export const screenTypes = ["intro", "question", "choice", "datepick", "rating", "input", "details", "media", "final"] as const;
 export type ScreenType = (typeof screenTypes)[number];
 
-export const screenTypeMeta: Record<ScreenType, { name: string; emoji: string; hint: string }> = {
-  intro: { name: "Привітання", emoji: "👋", hint: "Перший екран: заголовок, кілька слів і кнопка «Далі»" },
-  question: { name: "Питання так/ні", emoji: "💌", hint: "Головне питання з кнопками. Поведінка «ні» задається нижче" },
-  choice: { name: "Вибір плану", emoji: "🎯", hint: "Отримувач обирає з ваших варіантів або пропонує свій" },
-  datepick: { name: "Вибір дати й часу", emoji: "📅", hint: "Отримувач сам обирає зручний день і час із тих, що ви дозволили" },
-  rating: { name: "Шкала настрою", emoji: "🔥", hint: "Отримувач оцінює, наскільки хоче піти: від «ну таке» до «не можу дочекатися»" },
-  input: { name: "Відкрите питання", emoji: "✍️", hint: "Отримувач пише відповідь текстом: контакт, побажання, що взяти" },
-  details: { name: "Коли й де (задано вами)", emoji: "📍", hint: "Показує дату, час і місце з розділу «Основне», без вибору" },
-  media: { name: "Фото або GIF", emoji: "🖼️", hint: "Картинка за посиланням із підписом" },
-  final: { name: "Фінал", emoji: "🎉", hint: "Що побачить після відповіді. Є окремий текст для «ні»" },
-};
+export const noModes = ["allow", "runaway", "shrink", "multiply"] as const;
+export type NoModeId = (typeof noModes)[number];
 
-const title = z.string().trim().max(160).default("");
-const text = z.string().trim().max(800).default("");
-const imageUrl = z
-  .string()
-  .trim()
-  .max(600)
-  .refine((v) => v === "" || /^https?:\/\//i.test(v), "Посилання має починатися з http(s)://")
-  .default("");
-const button = z.string().trim().min(1, "Підпис кнопки порожній").max(40).default("Далі");
-const id = z.string().min(1).max(40);
+/** Назви й підказки типів екранів вибраною мовою. */
+export function screenTypeMeta(locale: Locale): Record<ScreenType, { name: string; emoji: string; hint: string }> {
+  const t = getDictionary(locale).screens.types;
+  const emoji: Record<ScreenType, string> = {
+    intro: "👋",
+    question: "💌",
+    choice: "🎯",
+    datepick: "📅",
+    rating: "🔥",
+    input: "✍️",
+    details: "📍",
+    media: "🖼️",
+    final: "🎉",
+  };
+  return Object.fromEntries(screenTypes.map((k) => [k, { ...t[k], emoji: emoji[k] }])) as Record<
+    ScreenType,
+    { name: string; emoji: string; hint: string }
+  >;
+}
 
-export const screenSchema = z.discriminatedUnion("type", [
-  z.object({ id, type: z.literal("intro"), title, text, imageUrl, button }),
-  z.object({
-    id,
-    type: z.literal("question"),
-    title,
-    text,
-    imageUrl,
-    yesLabel: z.string().trim().min(1).max(40).default("Так! 💛"),
-    noLabel: z.string().trim().min(1).max(40).default("На жаль, ні"),
-  }),
-  z.object({
-    id,
-    type: z.literal("choice"),
-    title,
-    text,
-    imageUrl,
-    options: z
-      .array(
-        z.object({
-          emoji: z.string().trim().max(8).default(""),
-          label: z.string().trim().min(1, "Варіант порожній").max(60),
-        }),
-      )
-      .min(2, "Потрібно хоча б два варіанти")
-      .max(8),
-    allowCustom: z.boolean().default(true),
-    button,
-  }),
-  z.object({
-    id,
-    type: z.literal("datepick"),
-    title,
-    text,
-    imageUrl,
-    /** any: будь-який день із найближчих daysAhead; list: лише дати з dates */
-    dateMode: z.enum(["any", "list"]).default("any"),
-    daysAhead: z.number().int().min(3).max(60).default(14),
-    dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(14).default([]),
-    /** slots: лише запропонований час; free: отримувач вводить час сам */
-    timeMode: z.enum(["slots", "free"]).default("slots"),
-    slots: z.array(z.string().regex(/^\d{2}:\d{2}$/)).max(12).default(["12:00", "15:00", "19:00"]),
-    button,
-  }),
-  z.object({
-    id,
-    type: z.literal("rating"),
-    title,
-    text,
-    imageUrl,
-    labels: z.array(z.string().trim().min(1).max(40)).length(5).default(["Ну таке", "Норм", "Цікаво", "Дуже хочу", "Не можу дочекатися"]),
-    button,
-  }),
-  z.object({
-    id,
-    type: z.literal("input"),
-    title,
-    text,
-    imageUrl,
-    placeholder: z.string().trim().max(120).default(""),
-    required: z.boolean().default(false),
-    button,
-  }),
-  z.object({ id, type: z.literal("details"), title, text, imageUrl, button }),
-  z.object({ id, type: z.literal("media"), title, text, imageUrl, button }),
-  z.object({
-    id,
-    type: z.literal("final"),
-    title,
-    text,
-    imageUrl,
-    noTitle: z.string().trim().max(160).default("Шкода 💙"),
-    noText: z.string().trim().max(800).default("Дякую за чесну відповідь. Можливо, іншим разом."),
-  }),
-]);
+export function noModeMeta(locale: Locale): Record<NoModeId, { name: string; hint: string }> {
+  return getDictionary(locale).screens.noModes;
+}
 
-export const screensSchema = z.array(screenSchema).min(1, "Додайте хоча б один екран").max(12);
+/** Схема екранів з повідомленнями про помилки вибраною мовою. */
+export function makeScreenSchema(dict: Dict) {
+  const e = dict.screens.errors;
+  const title = z.string().trim().max(160).default("");
+  const text = z.string().trim().max(800).default("");
+  const imageUrl = z
+    .string()
+    .trim()
+    .max(600)
+    .refine((v) => v === "" || /^https?:\/\//i.test(v), e.imageUrl)
+    .default("");
+  const button = z.string().trim().min(1, e.button).max(40).default(dict.screens.defaults.next);
+  const id = z.string().min(1).max(40);
 
-export type Screen = z.infer<typeof screenSchema>;
+  const screenSchema = z.discriminatedUnion("type", [
+    z.object({ id, type: z.literal("intro"), title, text, imageUrl, button }),
+    z.object({
+      id,
+      type: z.literal("question"),
+      title,
+      text,
+      imageUrl,
+      yesLabel: z.string().trim().min(1).max(40).default(dict.screens.defaults.yes),
+      noLabel: z.string().trim().min(1).max(40).default(dict.screens.defaults.no),
+    }),
+    z.object({
+      id,
+      type: z.literal("choice"),
+      title,
+      text,
+      imageUrl,
+      options: z
+        .array(z.object({ emoji: z.string().trim().max(8).default(""), label: z.string().trim().min(1, e.option).max(60) }))
+        .min(2, e.options)
+        .max(8),
+      allowCustom: z.boolean().default(true),
+      button,
+    }),
+    z.object({
+      id,
+      type: z.literal("datepick"),
+      title,
+      text,
+      imageUrl,
+      /** any: будь-який день із найближчих daysAhead; list: лише дати з dates */
+      dateMode: z.enum(["any", "list"]).default("any"),
+      daysAhead: z.number().int().min(3).max(60).default(14),
+      dates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).max(14).default([]),
+      /** slots: лише запропонований час; free: отримувач вводить час сам */
+      timeMode: z.enum(["slots", "free"]).default("slots"),
+      slots: z.array(z.string().regex(/^\d{2}:\d{2}$/)).max(12).default(["12:00", "15:00", "19:00"]),
+      button,
+    }),
+    z.object({
+      id,
+      type: z.literal("rating"),
+      title,
+      text,
+      imageUrl,
+      labels: z.array(z.string().trim().min(1).max(40)).length(5).default([...dict.screens.defaults.ratingLabels]),
+      button,
+    }),
+    z.object({
+      id,
+      type: z.literal("input"),
+      title,
+      text,
+      imageUrl,
+      placeholder: z.string().trim().max(120).default(""),
+      required: z.boolean().default(false),
+      button,
+    }),
+    z.object({ id, type: z.literal("details"), title, text, imageUrl, button }),
+    z.object({ id, type: z.literal("media"), title, text, imageUrl, button }),
+    z.object({
+      id,
+      type: z.literal("final"),
+      title,
+      text,
+      imageUrl,
+      noTitle: z.string().trim().max(160).default(dict.screens.defaults.finalNoTitle),
+      noText: z.string().trim().max(800).default(dict.screens.defaults.finalNoText),
+    }),
+  ]);
+
+  return { screenSchema, screensSchema: z.array(screenSchema).min(1, e.min).max(12) };
+}
+
+export type Screen = z.infer<ReturnType<typeof makeScreenSchema>["screenSchema"]>;
 export type ScreenOf<T extends ScreenType> = Extract<Screen, { type: T }>;
 
 export function newScreenId(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
-export function newScreen(type: ScreenType): Screen {
+export function newScreen(type: ScreenType, locale: Locale): Screen {
+  const d = getDictionary(locale).screens.defaults;
   const sid = newScreenId();
   switch (type) {
     case "intro":
-      return { id: sid, type, title: "Привіт, {name}! 👋", text: "У мене для тебе дещо є…", imageUrl: "", button: "Відкрити" };
+      return { id: sid, type, title: d.introTitle, text: d.introText, imageUrl: "", button: d.introButton };
     case "question":
-      return { id: sid, type, title: "Підеш зі мною на побачення?", text: "", imageUrl: "", yesLabel: "Так! 💛", noLabel: "На жаль, ні" };
+      return { id: sid, type, title: d.question, text: "", imageUrl: "", yesLabel: d.yes, noLabel: d.no };
     case "choice":
-      return {
-        id: sid,
-        type,
-        title: "Що обираємо?",
-        text: "",
-        imageUrl: "",
-        options: [
-          { emoji: "☕", label: "Кава" },
-          { emoji: "🍝", label: "Вечеря" },
-          { emoji: "🎬", label: "Кіно" },
-          { emoji: "🚶", label: "Прогулянка" },
-        ],
-        allowCustom: true,
-        button: "Далі",
-      };
+      return { id: sid, type, title: d.choiceTitle, text: "", imageUrl: "", options: d.options.map((o) => ({ ...o })), allowCustom: true, button: d.next };
     case "datepick":
       return {
         id: sid,
         type,
-        title: "Коли тобі зручно?",
-        text: "Обери день і час, а решту я організую.",
+        title: d.datepickTitle,
+        text: d.datepickText,
         imageUrl: "",
         dateMode: "any",
         daysAhead: 14,
         dates: [],
         timeMode: "slots",
         slots: ["12:00", "15:00", "19:00"],
-        button: "Підтвердити",
+        button: d.datepickButton,
       };
     case "rating":
-      return {
-        id: sid,
-        type,
-        title: "Наскільки хочеш піти?",
-        text: "",
-        imageUrl: "",
-        labels: ["Ну таке", "Норм", "Цікаво", "Дуже хочу", "Не можу дочекатися"],
-        button: "Далі",
-      };
+      return { id: sid, type, title: d.ratingTitle, text: "", imageUrl: "", labels: [...d.ratingLabels], button: d.next };
     case "input":
-      return {
-        id: sid,
-        type,
-        title: "Щось додати?",
-        text: "Побажання, алергії, улюблена музика — усе, що мені варто знати.",
-        imageUrl: "",
-        placeholder: "Напиши тут…",
-        required: false,
-        button: "Далі",
-      };
+      return { id: sid, type, title: d.inputTitle, text: d.inputText, imageUrl: "", placeholder: d.inputPlaceholder, required: false, button: d.next };
     case "details":
-      return { id: sid, type, title: "Коли й де", text: "", imageUrl: "", button: "Чудово" };
+      return { id: sid, type, title: d.detailsTitle, text: "", imageUrl: "", button: d.detailsButton };
     case "media":
-      return { id: sid, type, title: "", text: "", imageUrl: "https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif", button: "Далі" };
+      return { id: sid, type, title: "", text: "", imageUrl: "https://media.giphy.com/media/MDJ9IbxxvDUQM/giphy.gif", button: d.next };
     case "final":
-      return {
-        id: sid,
-        type,
-        title: "Ура! 🎉",
-        text: "{name}, домовились: {choice}, {when}. {author} уже знає й чекає зустрічі!",
-        imageUrl: "",
-        noTitle: "Шкода 💙",
-        noText: "Дякую за чесну відповідь. Можливо, іншим разом.",
-      };
+      return { id: sid, type, title: d.finalTitle, text: d.finalText, imageUrl: "", noTitle: d.finalNoTitle, noText: d.finalNoText };
   }
 }
 
 /** Стартовий набір екранів для нового запрошення. */
-export function defaultScreens(): Screen[] {
-  return [newScreen("intro"), newScreen("question"), newScreen("choice"), newScreen("datepick"), newScreen("rating"), newScreen("final")];
+export function defaultScreens(locale: Locale): Screen[] {
+  return ["intro", "question", "choice", "datepick", "rating", "final"].map((t) => newScreen(t as ScreenType, locale));
+}
+
+/** Чи екрани ще стандартні (порівняння без id), щоб можна було безпечно замінити їх при зміні мови. */
+export function isDefaultSet(screens: Screen[], locale: Locale): boolean {
+  const strip = (list: Screen[]) =>
+    JSON.stringify(
+      list.map((s) => {
+        const copy: Record<string, unknown> = { ...s };
+        delete copy.id;
+        return copy;
+      }),
+    );
+  return strip(screens) === strip(defaultScreens(locale));
 }
 
 type LegacyFields = {
@@ -201,39 +191,32 @@ type LegacyFields = {
 };
 
 /** Екрани для запрошень, створених до появи конструктора екранів. */
-export function legacyScreens(inv: LegacyFields): Screen[] {
+export function legacyScreens(inv: LegacyFields, locale: Locale): Screen[] {
+  const d = getDictionary(locale).screens.defaults;
   const screens: Screen[] = [
-    { id: "q", type: "question", title: inv.question, text: inv.message ?? "", imageUrl: "", yesLabel: "Так! 💛", noLabel: "На жаль, ні" },
+    { id: "q", type: "question", title: inv.question, text: inv.message ?? "", imageUrl: "", yesLabel: d.yes, noLabel: d.no },
   ];
   if (inv.eventDate || inv.eventTime || inv.place) {
-    screens.push({ id: "d", type: "details", title: "Коли й де", text: "", imageUrl: "", button: "Чудово" });
+    screens.push({ id: "d", type: "details", title: d.detailsTitle, text: "", imageUrl: "", button: d.detailsButton });
   }
-  screens.push({
-    id: "f",
-    type: "final",
-    title: "Ура! 🎉",
-    text: "{author} уже знає, що ти за. Домовляйтеся про деталі 😉",
-    imageUrl: "",
-    noTitle: "Шкода 💙",
-    noText: "Дякую за чесну відповідь. Можливо, іншим разом.",
-  });
+  screens.push({ id: "f", type: "final", title: d.finalTitle, text: d.legacyFinalText, imageUrl: "", noTitle: d.finalNoTitle, noText: d.finalNoText });
   return screens;
 }
 
 /** Розбирає JSON екранів із бази; на помилку або null повертає legacy-екрани. */
-export function parseScreens(json: string | null, inv: LegacyFields): Screen[] {
-  if (!json) return legacyScreens(inv);
+export function parseScreens(json: string | null, inv: LegacyFields, locale: Locale): Screen[] {
+  if (!json) return legacyScreens(inv, locale);
   try {
-    const parsed = screensSchema.safeParse(JSON.parse(json));
-    if (parsed.success) return ensureFinal(parsed.data);
+    const parsed = makeScreenSchema(getDictionary(locale)).screensSchema.safeParse(JSON.parse(json));
+    if (parsed.success) return ensureFinal(parsed.data, locale);
   } catch {
     /* падаємо на legacy */
   }
-  return legacyScreens(inv);
+  return legacyScreens(inv, locale);
 }
 
-export function ensureFinal(screens: Screen[]): Screen[] {
-  return screens.some((s) => s.type === "final") ? screens : [...screens, newScreen("final")];
+export function ensureFinal(screens: Screen[], locale: Locale): Screen[] {
+  return screens.some((s) => s.type === "final") ? screens : [...screens, newScreen("final", locale)];
 }
 
 export type ScreenVars = {
@@ -251,6 +234,7 @@ export type ScreenVars = {
 export type Choice = { screen: string; value: string; kind?: ScreenType };
 
 export function buildVars(ctx: {
+  locale: Locale;
   recipientName: string;
   authorName: string;
   eventDate: string | null;
@@ -265,31 +249,21 @@ export function buildVars(ctx: {
     author: ctx.authorName,
     choice: picks.join(", "),
     when,
-    date: formatEventDate(ctx.eventDate, null) ?? "",
+    date: formatEventDate(ctx.eventDate, null, ctx.locale) ?? "",
     time: ctx.eventTime ?? "",
     place: ctx.place ?? "",
   };
 }
 
-/** Підставляє {name}, {author}, {choice}, {date}, {time}, {place}. */
+/** Підставляє {name}, {author}, {choice}, {when}, {date}, {time}, {place}. */
 export function renderVars(template: string, vars: ScreenVars): string {
-  return template.replace(/\{(name|author|choice|when|date|time|place)\}/g, (_, key: keyof ScreenVars) => vars[key] ?? "");
+  return fmt(template, vars);
 }
 
-export const noModes = ["allow", "runaway", "shrink", "multiply"] as const;
-export type NoModeId = (typeof noModes)[number];
-
-export const noModeMeta: Record<NoModeId, { name: string; hint: string }> = {
-  allow: { name: "Звичайна", hint: "Отримувач може чесно відповісти «ні»" },
-  runaway: { name: "Тікає 🏃", hint: "Відстрибує від курсора й пальця, «Так» росте" },
-  shrink: { name: "Зменшується 🔬", hint: "З кожною спробою меншає, доки не зникне" },
-  multiply: { name: "Розмножує «Так» 🐇", hint: "Кожне натискання «ні» додає ще одну кнопку «Так»" },
-};
-
 /** Короткий підпис для списку запрошень. */
-export function summarizeScreens(screens: Screen[]): string {
+export function summarizeScreens(screens: Screen[], locale: Locale): string {
   const q = screens.find((s): s is ScreenOf<"question"> => s.type === "question");
   if (q?.title) return q.title;
   const first = screens.find((s) => s.title);
-  return first?.title ?? "Запрошення";
+  return first?.title ?? getDictionary(locale).screens.defaults.summaryFallback;
 }

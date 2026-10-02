@@ -7,46 +7,47 @@ import { customAlphabet } from "nanoid";
 import { getDb } from "@/db";
 import { invitations, responses, users } from "@/db/schema";
 import { requireUser } from "@/lib/auth";
+import { getDictionary, isLocale } from "@/lib/i18n";
+import { getDict, getLocale } from "@/lib/i18n/server";
 import { notifyAuthor } from "@/lib/notify";
 import { ensureFinal, noModes, summarizeScreens, type Screen } from "@/lib/screens";
 import { getBaseUrl } from "@/lib/url";
-import {
-  commentSchema,
-  firstError,
-  invitationSchema,
-  responseSchema,
-  settingsSchema,
-} from "@/lib/validation";
+import { makeValidation } from "@/lib/validation";
+import type { Locale } from "@/lib/i18n";
 
 const slugAlphabet = customAlphabet("abcdefghijkmnpqrstuvwxyz23456789", 8);
 
 export type FormState = { error?: string; ok?: boolean };
 
-function parseInvitationForm(formData: FormData) {
-  return invitationSchema.safeParse({
+async function parseInvitationForm(formData: FormData) {
+  const dict = await getDict();
+  const { invitationSchema, firstError } = makeValidation(dict);
+  const parsed = invitationSchema.safeParse({
     templateId: formData.get("templateId"),
     recipientName: formData.get("recipientName"),
     eventDate: formData.get("eventDate") ?? "",
     eventTime: formData.get("eventTime") ?? "",
     place: formData.get("place") ?? "",
     noMode: formData.get("noMode") ?? "allow",
+    locale: formData.get("locale") ?? (await getLocale()),
     screens: formData.get("screens") ?? "[]",
   });
+  return { parsed, firstError, dict };
 }
 
-function derivedFields(screens: Screen[]) {
-  const finalScreens = ensureFinal(screens);
+function derivedFields(screens: Screen[], locale: Locale) {
+  const finalScreens = ensureFinal(screens, locale);
   const q = finalScreens.find((s) => s.type === "question");
   return {
     screens: JSON.stringify(finalScreens),
-    question: summarizeScreens(finalScreens),
+    question: summarizeScreens(finalScreens, locale),
     message: q && q.type === "question" && q.text ? q.text : null,
   };
 }
 
 export async function createInvitation(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
-  const parsed = parseInvitationForm(formData);
+  const { parsed, firstError, dict } = await parseInvitationForm(formData);
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { screens, ...fields } = parsed.data;
 
@@ -56,13 +57,13 @@ export async function createInvitation(_prev: FormState, formData: FormData): Pr
     try {
       [created] = await db
         .insert(invitations)
-        .values({ ...fields, ...derivedFields(screens), userId: user.id, slug: slugAlphabet() })
+        .values({ ...fields, ...derivedFields(screens, fields.locale), userId: user.id, slug: slugAlphabet() })
         .returning({ id: invitations.id });
     } catch (err) {
       if (attempt === 4) throw err;
     }
   }
-  if (!created) return { error: "Не вдалося створити запрошення, спробуйте ще раз" };
+  if (!created) return { error: dict.validation.createFailed };
 
   revalidatePath("/dashboard");
   redirect(`/dashboard/${created.id}`);
@@ -71,18 +72,18 @@ export async function createInvitation(_prev: FormState, formData: FormData): Pr
 export async function updateInvitation(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "Запрошення не знайдено" };
-  const parsed = parseInvitationForm(formData);
+  const { parsed, firstError, dict } = await parseInvitationForm(formData);
+  if (!id) return { error: dict.validation.notFound };
   if (!parsed.success) return { error: firstError(parsed.error) };
   const { screens, ...fields } = parsed.data;
 
   const db = await getDb();
   const updated = await db
     .update(invitations)
-    .set({ ...fields, ...derivedFields(screens) })
+    .set({ ...fields, ...derivedFields(screens, fields.locale) })
     .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)))
     .returning({ id: invitations.id, slug: invitations.slug });
-  if (updated.length === 0) return { error: "Запрошення не знайдено" };
+  if (updated.length === 0) return { error: dict.validation.notFound };
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/${id}`);
@@ -95,9 +96,7 @@ export async function deleteInvitation(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   const db = await getDb();
-  await db
-    .delete(invitations)
-    .where(and(eq(invitations.id, id), eq(invitations.userId, user.id)));
+  await db.delete(invitations).where(and(eq(invitations.id, id), eq(invitations.userId, user.id)));
   revalidatePath("/dashboard");
   redirect("/dashboard");
 }
@@ -120,10 +119,13 @@ export async function setNoMode(formData: FormData): Promise<void> {
 
 export async function updateSettings(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
+  const dict = await getDict();
+  const { settingsSchema, firstError } = makeValidation(dict);
   const parsed = settingsSchema.safeParse({
     name: formData.get("name"),
     telegramChatId: formData.get("telegramChatId") ?? "",
     notifyByEmail: formData.get("notifyByEmail") === "on",
+    locale: formData.get("locale") ?? user.locale,
   });
   if (!parsed.success) return { error: firstError(parsed.error) };
 
@@ -137,6 +139,8 @@ export type RespondResult = { ok: true; responseId: string } | { ok: false; erro
 
 /** Викликається плеєром запрошення, коли отримувач дійшов до фіналу. */
 export async function submitResponse(input: unknown): Promise<RespondResult> {
+  const uiDict = await getDict();
+  const { responseSchema, firstError } = makeValidation(uiDict);
   const parsed = responseSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: firstError(parsed.error) };
 
@@ -145,9 +149,11 @@ export async function submitResponse(input: unknown): Promise<RespondResult> {
     where: eq(invitations.slug, parsed.data.slug),
     with: { author: true },
   });
-  if (!invitation) return { ok: false, error: "Запрошення не знайдено" };
+  if (!invitation) return { ok: false, error: uiDict.validation.notFound };
+  // Повідомлення отримувачу — мовою запрошення.
+  const dict = getDictionary(isLocale(invitation.locale) ? invitation.locale : "uk");
   if (invitation.noMode !== "allow" && parsed.data.answer === "no") {
-    return { ok: false, error: "У цьому запрошенні варіант «ні» не передбачений 😉" };
+    return { ok: false, error: dict.validation.noNotAllowed };
   }
 
   const [response] = await db
@@ -160,12 +166,7 @@ export async function submitResponse(input: unknown): Promise<RespondResult> {
     .returning();
 
   const baseUrl = await getBaseUrl();
-  await notifyAuthor({
-    author: invitation.author,
-    invitation,
-    response,
-    manageUrl: `${baseUrl}/dashboard/${invitation.id}`,
-  });
+  await notifyAuthor({ author: invitation.author, invitation, response, manageUrl: `${baseUrl}/dashboard/${invitation.id}` });
 
   revalidatePath(`/dashboard/${invitation.id}`);
   revalidatePath("/dashboard");
@@ -174,15 +175,14 @@ export async function submitResponse(input: unknown): Promise<RespondResult> {
 
 /** Додає коментар до щойно надісланої відповіді. */
 export async function addResponseComment(input: unknown): Promise<FormState> {
+  const dict = await getDict();
+  const { commentSchema, firstError } = makeValidation(dict);
   const parsed = commentSchema.safeParse(input);
   if (!parsed.success) return { error: firstError(parsed.error) };
 
   const db = await getDb();
-  const invitation = await db.query.invitations.findFirst({
-    where: eq(invitations.slug, parsed.data.slug),
-    columns: { id: true },
-  });
-  if (!invitation) return { error: "Запрошення не знайдено" };
+  const invitation = await db.query.invitations.findFirst({ where: eq(invitations.slug, parsed.data.slug), columns: { id: true } });
+  if (!invitation) return { error: dict.validation.notFound };
 
   await db
     .update(responses)

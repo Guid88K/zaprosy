@@ -14,7 +14,7 @@
 - Замість оплати — кнопка донату **Buy Me a Coffee**: `https://buymeacoffee.com/vkuruchukv`, задається змінною `NEXT_PUBLIC_SUPPORT_URL`, без неї кнопка не рендериться.
 - Стек обрав користувач: **Next.js + SQLite/Postgres**. Фактично: Next.js 16.3 (App Router, Server Actions, Turbopack), React 19, TypeScript, Tailwind 4, Drizzle ORM, SQLite через `@libsql/client` (локально файл, у проді Turso), сесії JWT у httpOnly cookie (`jose`), паролі `bcryptjs`, валідація `zod` v4, `nodemailer` для SMTP.
 - Хостинг: **Vercel Hobby + Turso Free** (0 грн/міс). Обговорювали альтернативи (Cloudflare Workers + D1, VPS Hetzner, українські хостери, Oracle Always Free) — користувач обрав безкоштовний варіант.
-- Весь UI українською. Імена отримувачів у кличному відмінку («Оленко», «Ніко», «Максе»).
+- UI двома мовами: українська (за замовчуванням) та англійська. Мова інтерфейсу: cookie `zaprosy_locale` → Accept-Language → uk; перемикач UK|EN у шапках (`LanguageSwitcher`, server action `setLocale`, також пише `users.locale`). Мова запрошення окрема (`invitations.locale`, select у «Основному» конструктора): нею отримувач бачить плеєр, дати (`Intl` uk-UA/en-GB), підказки, а автор отримує сповіщення своєю мовою (`users.locale`). Словники: `src/lib/i18n/dictionaries.ts` (`uk` задає тип `Dict`, `en` зобов'язаний мати ті самі ключі). Серверні компоненти беруть `getDict()/getLocale()` з `src/lib/i18n/server.ts`, клієнтські — `useI18n()` з `src/lib/i18n/client.tsx`. Усі тексти екранів за замовчуванням, назви типів екранів, режимів «ні», шаблонів і повідомлення валідації беруться зі словника (`makeValidation(dict)`, `makeScreenSchema(dict)`, `newScreen(type, locale)`). Імена отримувачів українською у кличному відмінку («Оленко», «Ніко», «Максе»).
 
 ## 3. Інфраструктура й доступи
 
@@ -58,7 +58,9 @@ src/lib/screens.ts                МОДЕЛЬ ЕКРАНІВ: типи, zod-с�
 src/lib/templates.ts              6 шаблонів дизайну (romantic, night, sunset, garden, minimal, ukraine)
 src/lib/actions/auth.ts           register/login/logout
 src/lib/actions/invitations.ts    create/update/delete, setNoMode, updateSettings, submitResponse, addResponseComment
-src/lib/auth.ts, notify.ts, url.ts, format.ts, validation.ts
+src/lib/auth.ts, notify.ts, url.ts, format.ts (дати за локаллю), validation.ts (фабрика схем за словником)
+src/lib/i18n/                     dictionaries.ts (uk/en), index.ts (locales, fmt, plural), server.ts (getLocale/getDict/cookie), client.tsx (I18nProvider/useI18n)
+src/components/LanguageSwitcher.tsx перемикач UK|EN
 src/db/schema.ts, src/db/index.ts
 drizzle.config.ts                 dialect sqlite для file:, turso для libsql://
 DEPLOY.md                         покрокова інструкція деплою українською
@@ -69,7 +71,7 @@ DEPLOY.md                         покрокова інструкція деп
 - `users`: id, email (unique), password_hash, name, telegram_chat_id, notify_by_email, created_at.
 - `invitations`: id, user_id, slug (8 символів з алфавіту без схожих літер), template_id, recipient_name, question, message, event_date, event_time, place, `no_mode` (`allow|runaway|shrink|multiply`), `screens` (JSON-масив екранів або NULL для старих), created_at. Поля `question`/`message` тепер похідні: беруться з екрана «question» при збереженні (для списку в кабінеті).
 - `responses`: id, invitation_id, answer (`yes|no`), comment, `choices` (JSON `[{screen, value, kind}]`), created_at.
-- Міграції: 0000 базова, 0001 `no_mode`, 0002 `screens` + `choices`. Усі застосовані до Turso.
+- Міграції: 0000 базова, 0001 `no_mode`, 0002 `screens` + `choices`, 0003 `locale` у `users` та `invitations`. Усі застосовані до Turso.
 
 ### Екрани (`src/lib/screens.ts`)
 
@@ -115,4 +117,5 @@ DEPLOY.md                         покрокова інструкція деп
 7. Запит «зроби як у invitik, цікаві сторінки» → багатоекранний конструктор, плеєр, редагування, 4 режими «ні», сердечка.
 8. Запит «там заповнює отримувач, а не автор» → екрани вибору плану зі своїм варіантом, дати й часу, настрою, відкритого питання; змінна `{when}`.
 9. Створено запрошення «Операція „Багет"» для Ніки на нових екранах.
-10. Цей файл.
+10. CONTEXT.md.
+11. Запит «добав локалізацію, щоб могло бути все на англійській» → повна двомовність uk/en, окрема мова запрошення, міграція 0003.

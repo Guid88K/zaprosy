@@ -6,28 +6,28 @@ import { getDb } from "@/db";
 import { invitations } from "@/db/schema";
 import { InvitationForm } from "@/components/InvitationForm";
 import { requireUser } from "@/lib/auth";
+import { fmt } from "@/lib/i18n";
+import { getDict } from "@/lib/i18n/server";
 import { parseScreens } from "@/lib/screens";
 
-export const metadata: Metadata = { title: "Редагування запрошення" };
+export async function generateMetadata(): Promise<Metadata> {
+  return { title: (await getDict()).meta.edit };
+}
 
 type Props = { params: Promise<{ id: string }> };
 
 export default async function EditInvitationPage({ params }: Props) {
   const { id } = await params;
-  const user = await requireUser();
+  const [user, dict] = await Promise.all([requireUser(), getDict()]);
   const db = await getDb();
-  const inv = await db.query.invitations.findFirst({
-    where: and(eq(invitations.id, id), eq(invitations.userId, user.id)),
-  });
+  const inv = await db.query.invitations.findFirst({ where: and(eq(invitations.id, id), eq(invitations.userId, user.id)) });
   if (!inv) notFound();
 
   return (
     <div>
-      <Link href={`/dashboard/${inv.id}`} className="text-sm text-muted hover:text-foreground">
-        ← До запрошення
-      </Link>
-      <h1 className="mt-2 text-2xl font-semibold">Редагування запрошення для {inv.recipientName}</h1>
-      <p className="mb-8 text-sm text-muted">Посилання лишиться тим самим, зміни з&apos;являться одразу після збереження.</p>
+      <Link href={`/dashboard/${inv.id}`} className="text-sm text-muted hover:text-foreground">{dict.builder.editBack}</Link>
+      <h1 className="mt-2 text-2xl font-semibold">{fmt(dict.builder.editTitle, { name: inv.recipientName })}</h1>
+      <p className="mb-8 text-sm text-muted">{dict.builder.editSubtitle}</p>
       <InvitationForm
         authorName={user.name}
         initial={{
@@ -38,7 +38,8 @@ export default async function EditInvitationPage({ params }: Props) {
           eventTime: inv.eventTime,
           place: inv.place,
           noMode: inv.noMode,
-          screens: parseScreens(inv.screens, inv),
+          locale: inv.locale,
+          screens: parseScreens(inv.screens, inv, inv.locale),
         }}
       />
     </div>

@@ -1,10 +1,11 @@
+import type { Dict } from "./i18n";
+
 export type TemplateFont = "serif" | "script" | "sans";
+export type TemplateId = "romantic" | "night" | "sunset" | "garden" | "minimal" | "ukraine";
 
 export type Template = {
-  id: string;
-  name: string;
+  id: TemplateId;
   emoji: string;
-  description: string;
   /** Фон усієї сторінки */
   page: string;
   /** Фон картки */
@@ -21,9 +22,7 @@ export type Template = {
 export const templates: Template[] = [
   {
     id: "romantic",
-    name: "Романтика",
     emoji: "💌",
-    description: "Ніжні рожеві відтінки для щирого запрошення",
     page: "linear-gradient(135deg, #ffe4ec 0%, #fbcfe8 45%, #f9a8d4 100%)",
     card: "rgba(255, 255, 255, 0.88)",
     text: "#5b1a35",
@@ -36,9 +35,7 @@ export const templates: Template[] = [
   },
   {
     id: "night",
-    name: "Нічне небо",
     emoji: "✨",
-    description: "Глибокий синій і зорі, коли хочеться загадковості",
     page:
       "radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12) 0, transparent 2px), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.14) 0, transparent 2px), radial-gradient(circle at 50% 80%, rgba(255,255,255,0.1) 0, transparent 2px), linear-gradient(160deg, #0f172a 0%, #1e1b4b 60%, #312e81 100%)",
     card: "rgba(15, 23, 42, 0.72)",
@@ -52,9 +49,7 @@ export const templates: Template[] = [
   },
   {
     id: "sunset",
-    name: "Захід сонця",
     emoji: "🌅",
-    description: "Теплий помаранчевий градієнт, як вечір на набережній",
     page: "linear-gradient(160deg, #fde68a 0%, #fb923c 40%, #c026d3 100%)",
     card: "rgba(255, 251, 235, 0.9)",
     text: "#431407",
@@ -67,9 +62,7 @@ export const templates: Template[] = [
   },
   {
     id: "garden",
-    name: "Квітучий сад",
     emoji: "🌿",
-    description: "Свіжа зелень і лаванда для прогулянки чи пікніка",
     page: "linear-gradient(140deg, #d9f99d 0%, #a7f3d0 50%, #c4b5fd 100%)",
     card: "rgba(255, 255, 255, 0.86)",
     text: "#14532d",
@@ -82,9 +75,7 @@ export const templates: Template[] = [
   },
   {
     id: "minimal",
-    name: "Мінімалізм",
     emoji: "🖤",
-    description: "Чорне на білому, нічого зайвого",
     page: "#f5f5f4",
     card: "#ffffff",
     text: "#0a0a0a",
@@ -97,9 +88,7 @@ export const templates: Template[] = [
   },
   {
     id: "ukraine",
-    name: "Синьо-жовте",
     emoji: "💙💛",
-    description: "Небо й пшениця, по-нашому",
     page: "linear-gradient(180deg, #2563eb 0%, #3b82f6 48%, #facc15 52%, #fde047 100%)",
     card: "rgba(255, 255, 255, 0.92)",
     text: "#1e3a8a",
@@ -112,10 +101,15 @@ export const templates: Template[] = [
   },
 ];
 
-export const DEFAULT_TEMPLATE_ID = templates[0].id;
+export const DEFAULT_TEMPLATE_ID: TemplateId = "romantic";
 
 export function getTemplate(id: string | null | undefined): Template {
   return templates.find((t) => t.id === id) ?? templates[0];
+}
+
+/** Назва й опис шаблону вибраною мовою. */
+export function templateText(id: TemplateId, dict: Dict): { name: string; description: string } {
+  return dict.templates[id];
 }
 
 export const fontClassByKey: Record<TemplateFont, string> = {
@@ -123,11 +117,3 @@ export const fontClassByKey: Record<TemplateFont, string> = {
   script: "font-script",
   sans: "font-sans",
 };
-
-export const questionPresets = [
-  "Підеш зі мною на побачення?",
-  "Проведемо цей вечір разом?",
-  "Запрошую тебе на каву. Що скажеш?",
-  "Погуляємо в суботу?",
-  "Підеш зі мною в кіно?",
-];

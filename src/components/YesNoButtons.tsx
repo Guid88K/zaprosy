@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { getDictionary, type Locale } from "@/lib/i18n";
 import type { NoModeId } from "@/lib/screens";
 import type { Template } from "@/lib/templates";
 
@@ -12,12 +13,13 @@ type Props = {
   onYes: () => void;
   onNo: () => void;
   compact?: boolean;
+  locale: Locale;
 };
 
-const dodgePhrases = ["Точно ні?", "Подумай ще", "Ну ні ж", "Не вийде 😏", "Спробуй ще раз", "Я швидша", "Тисни «Так»", "Здавайся 💛"];
-const multiplyPhrases = ["Ще раз?", "Ой, ще одна", "Їх стає більше", "Так, так, так", "Опір марний 😄", "Здавайся 💛"];
-
-export function YesNoButtons({ template: t, yesLabel, noLabel, noMode, onYes, onNo, compact }: Props) {
+export function YesNoButtons({ template: t, yesLabel, noLabel, noMode, onYes, onNo, compact, locale }: Props) {
+  const d = getDictionary(locale).player;
+  const dodgePhrases = d.dodge;
+  const multiplyPhrases = d.multiply;
   const [attempts, setAttempts] = useState(0);
   const [dodge, setDodge] = useState({ x: 0, y: 0 });
   const areaRef = useRef<HTMLDivElement>(null);
@@ -102,7 +104,7 @@ export function YesNoButtons({ template: t, yesLabel, noLabel, noMode, onYes, on
       </div>
       {tricky && attempts >= 3 ? (
         <p className="animate-float-in mt-4 text-center text-sm" style={{ color: t.muted }}>
-          {noGone ? "Кнопка «ні» самоліквідувалась 😄" : "Здається, варіанту «ні» тут не передбачено 😄"}
+          {noGone ? d.noGone : d.noHint}
         </p>
       ) : null}
     </div>

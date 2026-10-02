@@ -1,12 +1,15 @@
+import { getDict } from "@/lib/i18n/server";
+
 type Props = {
   variant?: "button" | "text";
   className?: string;
 };
 
 /** Посилання на донат (Buy Me a Coffee, monobank Банка тощо). Не рендериться, якщо NEXT_PUBLIC_SUPPORT_URL порожній. */
-export function SupportLink({ variant = "button", className = "" }: Props) {
+export async function SupportLink({ variant = "button", className = "" }: Props) {
   const url = process.env.NEXT_PUBLIC_SUPPORT_URL;
   if (!url) return null;
+  const dict = await getDict();
 
   const base =
     variant === "button"
@@ -15,7 +18,7 @@ export function SupportLink({ variant = "button", className = "" }: Props) {
 
   return (
     <a href={url} target="_blank" rel="noreferrer" className={`${base} ${className}`}>
-      ☕ Підтримати проєкт
+      {dict.support.button}
     </a>
   );
 }

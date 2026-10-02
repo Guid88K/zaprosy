@@ -3,34 +3,28 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { login, register, type AuthState } from "@/lib/actions/auth";
+import { useI18n } from "@/lib/i18n/client";
 import { SubmitButton } from "./SubmitButton";
 
 export function AuthForm({ mode }: { mode: "login" | "register" }) {
-  const [state, action] = useActionState<AuthState, FormData>(
-    mode === "login" ? login : register,
-    {},
-  );
+  const { dict } = useI18n();
+  const a = dict.auth;
+  const [state, action] = useActionState<AuthState, FormData>(mode === "login" ? login : register, {});
 
   return (
     <form action={action} className="card space-y-5">
       {mode === "register" ? (
         <div>
-          <label htmlFor="name" className="label">
-            Як тебе звати
-          </label>
+          <label htmlFor="name" className="label">{a.name}</label>
           <input id="name" name="name" className="field" autoComplete="name" required minLength={2} maxLength={60} />
         </div>
       ) : null}
       <div>
-        <label htmlFor="email" className="label">
-          Email
-        </label>
+        <label htmlFor="email" className="label">{a.email}</label>
         <input id="email" name="email" type="email" className="field" autoComplete="email" required />
       </div>
       <div>
-        <label htmlFor="password" className="label">
-          Пароль
-        </label>
+        <label htmlFor="password" className="label">{a.password}</label>
         <input
           id="password"
           name="password"
@@ -40,7 +34,7 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
           required
           minLength={mode === "register" ? 8 : 1}
         />
-        {mode === "register" ? <p className="mt-1 text-xs text-muted">Не менше 8 символів.</p> : null}
+        {mode === "register" ? <p className="mt-1 text-xs text-muted">{a.passwordHint}</p> : null}
       </div>
 
       {state.error ? (
@@ -49,26 +43,13 @@ export function AuthForm({ mode }: { mode: "login" | "register" }) {
         </p>
       ) : null}
 
-      <SubmitButton className="btn-primary w-full">
-        {mode === "login" ? "Увійти" : "Створити акаунт"}
-      </SubmitButton>
+      <SubmitButton className="btn-primary w-full">{mode === "login" ? a.login : a.register}</SubmitButton>
 
       <p className="text-center text-sm text-muted">
-        {mode === "login" ? (
-          <>
-            Ще немає акаунта?{" "}
-            <Link href="/register" className="font-medium text-brand hover:underline">
-              Зареєструватися
-            </Link>
-          </>
-        ) : (
-          <>
-            Уже є акаунт?{" "}
-            <Link href="/login" className="font-medium text-brand hover:underline">
-              Увійти
-            </Link>
-          </>
-        )}
+        {mode === "login" ? a.noAccount : a.haveAccount}{" "}
+        <Link href={mode === "login" ? "/register" : "/login"} className="font-medium text-brand hover:underline">
+          {mode === "login" ? a.registerLink : a.loginLink}
+        </Link>
       </p>
     </form>
   );

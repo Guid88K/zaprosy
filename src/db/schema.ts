@@ -12,6 +12,8 @@ export const users = sqliteTable("users", {
   notifyByEmail: integer("notify_by_email", { mode: "boolean" })
     .notNull()
     .default(true),
+  /** Мова інтерфейсу та сповіщень автора */
+  locale: text("locale", { enum: ["uk", "en"] }).notNull().default("uk"),
   createdAt: integer("created_at", { mode: "timestamp_ms" })
     .notNull()
     .$defaultFn(() => new Date()),
@@ -40,6 +42,8 @@ export const invitations = sqliteTable(
       .default("allow"),
     /** JSON-масив екранів (див. src/lib/screens.ts). null для старих запрошень: екрани будуються з полів вище. */
     screens: text("screens"),
+    /** Мова, якою отримувач бачить кнопки, дати й підказки плеєра */
+    locale: text("locale", { enum: ["uk", "en"] }).notNull().default("uk"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
