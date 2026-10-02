@@ -80,7 +80,7 @@ export function ResponseForm({ slug, template: t, authorName, noMode = "allow" }
             outlineOffset: 2,
             transform: `scale(${yesScale})`,
             transformOrigin: "left center",
-            zIndex: 2,
+            zIndex: runaway ? 1 : 2,
           }}
         >
           Так! 💛
@@ -102,7 +102,8 @@ export function ResponseForm({ slug, template: t, authorName, noMode = "allow" }
             outlineOffset: 2,
             transform: `translate(${dodge.x}px, ${dodge.y}px) scale(${noScale})`,
             transitionProperty: "transform, opacity",
-            zIndex: 1,
+            background: runaway ? t.card : undefined,
+            zIndex: runaway ? 3 : 1,
           }}
         >
           {noLabel}
