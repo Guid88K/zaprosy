@@ -1,0 +1,1 @@
+ALTER TABLE `invitations` ADD `no_mode` text DEFAULT 'allow' NOT NULL;

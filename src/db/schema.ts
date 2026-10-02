@@ -34,6 +34,10 @@ export const invitations = sqliteTable(
     eventDate: text("event_date"),
     eventTime: text("event_time"),
     place: text("place"),
+    /** allow: звичайні кнопки; runaway: кнопка «ні» тікає від курсора, відповісти «ні» неможливо */
+    noMode: text("no_mode", { enum: ["allow", "runaway"] })
+      .notNull()
+      .default("allow"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -79,3 +83,4 @@ export type User = typeof users.$inferSelect;
 export type Invitation = typeof invitations.$inferSelect;
 export type Response = typeof responses.$inferSelect;
 export type Answer = Response["answer"];
+export type NoMode = Invitation["noMode"];

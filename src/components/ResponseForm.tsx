@@ -1,15 +1,43 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import type { NoMode } from "@/db/schema";
 import { submitResponse, type RespondState } from "@/lib/actions/invitations";
 import type { Template } from "@/lib/templates";
 import { SubmitButton } from "./SubmitButton";
 
-type Props = { slug: string; template: Template; authorName: string };
+type Props = { slug: string; template: Template; authorName: string; noMode?: NoMode };
 
-export function ResponseForm({ slug, template: t, authorName }: Props) {
+/** Що каже кнопка «ні» після кожної спроби її впіймати. */
+const dodgePhrases = [
+  "На жаль, ні",
+  "Точно ні?",
+  "Подумай ще",
+  "Ну ні ж",
+  "Не вийде 😏",
+  "Спробуй ще раз",
+  "Я швидша",
+  "Тисни «Так»",
+  "Здавайся 💛",
+];
+
+export function ResponseForm({ slug, template: t, authorName, noMode = "allow" }: Props) {
   const [state, action] = useActionState<RespondState, FormData>(submitResponse, {});
   const [answer, setAnswer] = useState<"yes" | "no" | null>(null);
+  const [attempts, setAttempts] = useState(0);
+  const [dodge, setDodge] = useState({ x: 0, y: 0 });
+  const areaRef = useRef<HTMLDivElement>(null);
+  const runaway = noMode === "runaway";
+
+  function runAway() {
+    const width = areaRef.current?.offsetWidth ?? 300;
+    const range = Math.min(width * 0.45, 220);
+    setDodge({
+      x: (Math.random() * 2 - 1) * range,
+      y: (Math.random() * 2 - 1) * 90,
+    });
+    setAttempts((n) => n + 1);
+  }
 
   if (state.ok) {
     return (
@@ -29,12 +57,16 @@ export function ResponseForm({ slug, template: t, authorName }: Props) {
     );
   }
 
+  const yesScale = runaway ? Math.min(1 + attempts * 0.06, 1.45) : 1;
+  const noScale = runaway ? Math.max(1 - attempts * 0.07, 0.55) : 1;
+  const noLabel = runaway ? dodgePhrases[Math.min(attempts, dodgePhrases.length - 1)] : "На жаль, ні";
+
   return (
     <form action={action} className="font-sans">
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="answer" value={answer ?? ""} />
 
-      <div className="grid grid-cols-2 gap-3">
+      <div ref={areaRef} className="relative grid grid-cols-2 gap-3">
         <button
           type="button"
           onClick={() => setAnswer("yes")}
@@ -46,14 +78,21 @@ export function ResponseForm({ slug, template: t, authorName }: Props) {
             color: t.accentText,
             outline: answer === "yes" ? `3px solid ${t.text}` : "none",
             outlineOffset: 2,
+            transform: `scale(${yesScale})`,
+            transformOrigin: "left center",
+            zIndex: 2,
           }}
         >
           Так! 💛
         </button>
         <button
           type="button"
-          onClick={() => setAnswer("no")}
-          className={`rounded-xl border py-3.5 text-base font-semibold transition hover:-translate-y-0.5 ${
+          aria-disabled={runaway}
+          onMouseEnter={runaway ? runAway : undefined}
+          onTouchStart={runaway ? runAway : undefined}
+          onFocus={runaway ? runAway : undefined}
+          onClick={runaway ? runAway : () => setAnswer("no")}
+          className={`rounded-xl border py-3.5 text-base font-semibold transition duration-200 hover:-translate-y-0.5 ${
             answer === "yes" ? "opacity-50" : ""
           }`}
           style={{
@@ -61,11 +100,20 @@ export function ResponseForm({ slug, template: t, authorName }: Props) {
             color: t.muted,
             outline: answer === "no" ? `3px solid ${t.text}` : "none",
             outlineOffset: 2,
+            transform: `translate(${dodge.x}px, ${dodge.y}px) scale(${noScale})`,
+            transitionProperty: "transform, opacity",
+            zIndex: 1,
           }}
         >
-          На жаль, ні
+          {noLabel}
         </button>
       </div>
+
+      {runaway && attempts >= 3 && !answer ? (
+        <p className="animate-float-in mt-4 text-center text-sm" style={{ color: t.muted }}>
+          Здається, варіанту «ні» тут не передбачено 😄
+        </p>
+      ) : null}
 
       {answer ? (
         <div className="animate-float-in mt-5 space-y-3">

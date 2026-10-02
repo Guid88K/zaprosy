@@ -8,6 +8,13 @@
       "when": 1790927794325,
       "tag": "0000_closed_guardsmen",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1790933175125,
+      "tag": "0001_steep_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

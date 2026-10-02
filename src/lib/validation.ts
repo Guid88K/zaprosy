@@ -42,6 +42,7 @@ export const invitationSchema = z.object({
     .transform((v) => (v === "" ? null : v))
     .nullable(),
   place: optionalText(160),
+  noMode: z.enum(["allow", "runaway"]).default("allow"),
 });
 
 export const responseSchema = z.object({

@@ -40,7 +40,7 @@ export default async function PublicInvitationPage({ params }: Props) {
     <main className="flex min-h-dvh items-center justify-center px-4 py-10" style={{ background: t.page, backgroundAttachment: "fixed" }}>
       <div className="animate-float-in w-full max-w-xl">
         <InvitationCard template={t} data={inv}>
-          <ResponseForm slug={inv.slug} template={t} authorName={inv.author.name} />
+          <ResponseForm slug={inv.slug} template={t} authorName={inv.author.name} noMode={inv.noMode} />
         </InvitationCard>
         <p className="mt-6 text-center font-sans text-xs" style={{ color: t.dark ? "rgba(255,255,255,0.6)" : "rgba(0,0,0,0.45)" }}>
           Від {inv.author.name} · створено на{" "}

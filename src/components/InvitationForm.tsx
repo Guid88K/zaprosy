@@ -33,6 +33,7 @@ export function InvitationForm() {
   const [state, action] = useActionState<FormState, FormData>(createInvitation, {});
   const [templateId, setTemplateId] = useState(DEFAULT_TEMPLATE_ID);
   const [draft, setDraft] = useState<Draft>(initialDraft);
+  const [runawayNo, setRunawayNo] = useState(false);
   const template = getTemplate(templateId);
 
   const update =
@@ -185,6 +186,23 @@ export function InvitationForm() {
           />
         </div>
 
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-4 transition hover:border-brand/50">
+          <input
+            type="checkbox"
+            name="noMode"
+            value="runaway"
+            checked={runawayNo}
+            onChange={(e) => setRunawayNo(e.target.checked)}
+            className="mt-1 size-4 accent-brand"
+          />
+          <span>
+            <span className="block text-sm font-medium">Кнопка «ні» тікає 😏</span>
+            <span className="block text-xs text-muted">
+              Відповісти «ні» буде неможливо: кнопка відстрибує від курсора й пальця, а «Так» щоразу росте.
+            </span>
+          </span>
+        </label>
+
         {state.error ? (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-sm text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
             {state.error}
@@ -208,10 +226,10 @@ export function InvitationForm() {
                 Так! 💛
               </div>
               <div
-                className="rounded-xl border py-2.5 text-center text-sm font-semibold"
+                className={`rounded-xl border py-2.5 text-center text-sm font-semibold ${runawayNo ? "translate-x-3 -rotate-3 opacity-80" : ""}`}
                 style={{ borderColor: template.border, color: template.muted }}
               >
-                На жаль, ні
+                {runawayNo ? "Ні? Не вийде 😏" : "На жаль, ні"}
               </div>
             </div>
           </InvitationCard>

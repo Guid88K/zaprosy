@@ -30,6 +30,7 @@ export async function createInvitation(_prev: FormState, formData: FormData): Pr
     eventDate: formData.get("eventDate") ?? "",
     eventTime: formData.get("eventTime") ?? "",
     place: formData.get("place") ?? "",
+    noMode: formData.get("noMode") === "runaway" ? "runaway" : "allow",
   });
   if (!parsed.success) return { error: firstError(parsed.error) };
 
@@ -94,6 +95,9 @@ export async function submitResponse(_prev: RespondState, formData: FormData): P
     with: { author: true },
   });
   if (!invitation) return { error: "Запрошення не знайдено" };
+  if (invitation.noMode === "runaway" && parsed.data.answer === "no") {
+    return { error: "У цьому запрошенні варіант «ні» не передбачений 😉" };
+  }
 
   const [response] = await db
     .insert(responses)
