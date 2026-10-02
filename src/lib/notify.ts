@@ -22,6 +22,14 @@ function buildText({ invitation, response, manageUrl }: NotifyPayload): string {
     `💌 ${invitation.recipientName} відповів(ла) на запрошення: ${verdict}`,
     `Питання: «${invitation.question}»`,
   ];
+  if (response.choices) {
+    try {
+      const picks = JSON.parse(response.choices) as { screen: string; value: string }[];
+      for (const p of picks) lines.push(`${p.screen || "Вибір"}: ${p.value}`);
+    } catch {
+      /* ігноруємо зламаний JSON */
+    }
+  }
   if (response.comment) lines.push(`Коментар: ${response.comment}`);
   lines.push("", `Деталі: ${manageUrl}`);
   return lines.join("\n");

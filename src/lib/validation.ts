@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { templates } from "./templates";
+import { noModes, screensSchema, type Screen } from "./screens";
 
 const templateIds = templates.map((t) => t.id) as [string, ...string[]];
 
@@ -22,11 +23,25 @@ const optionalText = (max: number) =>
     .transform((v) => (v === "" ? null : v))
     .nullable();
 
+const screensJson = z.string().transform((raw, ctx): Screen[] => {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    ctx.addIssue({ code: "custom", message: "Не вдалося прочитати екрани" });
+    return z.NEVER;
+  }
+  const result = screensSchema.safeParse(parsed);
+  if (!result.success) {
+    ctx.addIssue({ code: "custom", message: result.error.issues[0]?.message ?? "Перевірте екрани" });
+    return z.NEVER;
+  }
+  return result.data;
+});
+
 export const invitationSchema = z.object({
   templateId: z.enum(templateIds),
   recipientName: z.string().trim().min(1, "Вкажіть, кого запрошуєте").max(60),
-  question: z.string().trim().min(3, "Сформулюйте питання").max(160),
-  message: optionalText(600),
   eventDate: z
     .string()
     .trim()
@@ -42,13 +57,23 @@ export const invitationSchema = z.object({
     .transform((v) => (v === "" ? null : v))
     .nullable(),
   place: optionalText(160),
-  noMode: z.enum(["allow", "runaway"]).default("allow"),
+  noMode: z.enum(noModes).default("allow"),
+  screens: screensJson,
 });
 
 export const responseSchema = z.object({
   slug: z.string().trim().min(1),
   answer: z.enum(["yes", "no"]),
-  comment: optionalText(500),
+  choices: z
+    .array(z.object({ screen: z.string().trim().max(160), value: z.string().trim().max(200) }))
+    .max(12)
+    .default([]),
+});
+
+export const commentSchema = z.object({
+  slug: z.string().trim().min(1),
+  responseId: z.string().min(1),
+  comment: z.string().trim().min(1, "Напишіть щось").max(500),
 });
 
 export const settingsSchema = z.object({

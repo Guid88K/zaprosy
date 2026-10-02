@@ -35,9 +35,11 @@ export const invitations = sqliteTable(
     eventTime: text("event_time"),
     place: text("place"),
     /** allow: звичайні кнопки; runaway: кнопка «ні» тікає від курсора, відповісти «ні» неможливо */
-    noMode: text("no_mode", { enum: ["allow", "runaway"] })
+    noMode: text("no_mode", { enum: ["allow", "runaway", "shrink", "multiply"] })
       .notNull()
       .default("allow"),
+    /** JSON-масив екранів (див. src/lib/screens.ts). null для старих запрошень: екрани будуються з полів вище. */
+    screens: text("screens"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),
@@ -56,6 +58,8 @@ export const responses = sqliteTable(
       .references(() => invitations.id, { onDelete: "cascade" }),
     answer: text("answer", { enum: ["yes", "no"] }).notNull(),
     comment: text("comment"),
+    /** JSON-масив вибраних варіантів: [{ screen, value }] */
+    choices: text("choices"),
     createdAt: integer("created_at", { mode: "timestamp_ms" })
       .notNull()
       .$defaultFn(() => new Date()),

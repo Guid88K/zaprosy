@@ -1,28 +1,25 @@
 import { setNoMode } from "@/lib/actions/invitations";
-import type { NoMode } from "@/db/schema";
+import { noModeMeta, noModes, type NoModeId } from "@/lib/screens";
 import { SubmitButton } from "./SubmitButton";
 
-export function NoModeToggle({ id, noMode }: { id: string; noMode: NoMode }) {
-  const runaway = noMode === "runaway";
+export function NoModeToggle({ id, noMode }: { id: string; noMode: NoModeId }) {
   return (
     <section className="card">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold">Кнопка «ні» {runaway ? "тікає 😏" : "звичайна"}</h2>
-          <p className="mt-1 text-sm text-muted">
-            {runaway
-              ? "Відповісти «ні» неможливо: кнопка відстрибує від курсора, а «Так» росте. Сервер теж не приймає «ні»."
-              : "Отримувач може чесно відповісти «ні». Увімкніть режим утікання, якщо хочете лишити тільки «Так»."}
-          </p>
-        </div>
-        <form action={setNoMode}>
-          <input type="hidden" name="id" value={id} />
-          <input type="hidden" name="noMode" value={runaway ? "allow" : "runaway"} />
-          <SubmitButton className={runaway ? "btn-secondary" : "btn-primary"} pendingText="Зберігаю…">
-            {runaway ? "Повернути звичайну «ні»" : "Увімкнути утікання"}
-          </SubmitButton>
-        </form>
-      </div>
+      <h2 className="font-semibold">Кнопка «ні»: {noModeMeta[noMode].name}</h2>
+      <p className="mt-1 text-sm text-muted">{noModeMeta[noMode].hint}. Змінюється миттєво, без редагування екранів.</p>
+      <form action={setNoMode} className="mt-4 flex flex-wrap items-center gap-2">
+        <input type="hidden" name="id" value={id} />
+        <select name="noMode" defaultValue={noMode} className="field w-auto">
+          {noModes.map((m) => (
+            <option key={m} value={m}>
+              {noModeMeta[m].name}
+            </option>
+          ))}
+        </select>
+        <SubmitButton className="btn-secondary" pendingText="Зберігаю…">
+          Застосувати
+        </SubmitButton>
+      </form>
     </section>
   );
 }

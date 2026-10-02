@@ -15,6 +15,13 @@
       "when": 1790933175125,
       "tag": "0001_steep_sharon_ventura",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790934143576,
+      "tag": "0002_cheerful_reavers",
+      "breakpoints": true
     }
   ]
 }

@@ -6,17 +6,28 @@ import { getDb } from "@/db";
 import { invitations } from "@/db/schema";
 import { CopyLinkButton } from "@/components/CopyLinkButton";
 import { DeleteInvitationButton } from "@/components/DeleteInvitationButton";
-import { InvitationCard } from "@/components/InvitationCard";
+import { InvitationPlayer } from "@/components/InvitationPlayer";
 import { NoModeToggle } from "@/components/NoModeToggle";
 import { SupportLink } from "@/components/SupportLink";
 import { requireUser } from "@/lib/auth";
 import { formatDateTime, pluralUk } from "@/lib/format";
+import { parseScreens } from "@/lib/screens";
 import { getTemplate } from "@/lib/templates";
 import { getBaseUrl } from "@/lib/url";
 
 export const metadata: Metadata = { title: "Запрошення" };
 
 type Props = { params: Promise<{ id: string }> };
+
+function parseChoices(json: string | null): { screen: string; value: string }[] {
+  if (!json) return [];
+  try {
+    const v = JSON.parse(json);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
 
 export default async function InvitationDetailPage({ params }: Props) {
   const { id } = await params;
@@ -29,6 +40,7 @@ export default async function InvitationDetailPage({ params }: Props) {
   if (!inv) notFound();
 
   const t = getTemplate(inv.templateId);
+  const screens = parseScreens(inv.screens, inv);
   const url = `${await getBaseUrl()}/i/${inv.slug}`;
   const shareText = encodeURIComponent(`${inv.recipientName}, у мене для тебе дещо є 💌 ${url}`);
 
@@ -39,8 +51,15 @@ export default async function InvitationDetailPage({ params }: Props) {
           <Link href="/dashboard" className="text-sm text-muted hover:text-foreground">
             ← Усі запрошення
           </Link>
-          <h1 className="mt-2 text-2xl font-semibold">Запрошення для {inv.recipientName}</h1>
-          <p className="text-sm text-muted">Створено {formatDateTime(inv.createdAt)}</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+            <h1 className="text-2xl font-semibold">Запрошення для {inv.recipientName}</h1>
+            <Link href={`/dashboard/${inv.id}/edit`} className="btn-secondary">
+              Редагувати екрани
+            </Link>
+          </div>
+          <p className="text-sm text-muted">
+            Створено {formatDateTime(inv.createdAt)} · {screens.length} {pluralUk(screens.length, "екран", "екрани", "екранів")}
+          </p>
         </div>
 
         <section className="card space-y-4">
@@ -93,7 +112,12 @@ export default async function InvitationDetailPage({ params }: Props) {
                   </div>
                   <div className="min-w-0">
                     <div className="font-semibold">{r.answer === "yes" ? "Так!" : "На жаль, ні"}</div>
-                    {r.comment ? <p className="mt-0.5 whitespace-pre-line text-sm">{r.comment}</p> : null}
+                    {parseChoices(r.choices).map((c) => (
+                      <p key={c.screen + c.value} className="mt-0.5 text-sm">
+                        <span className="text-muted">{c.screen}:</span> {c.value}
+                      </p>
+                    ))}
+                    {r.comment ? <p className="mt-1 whitespace-pre-line text-sm">«{r.comment}»</p> : null}
                     <div className="mt-1 text-xs text-muted">{formatDateTime(r.createdAt)}</div>
                   </div>
                 </li>
@@ -108,7 +132,14 @@ export default async function InvitationDetailPage({ params }: Props) {
       <aside className="self-start lg:sticky lg:top-6">
         <p className="label">Прев&apos;ю</p>
         <div className="rounded-3xl p-5" style={{ background: t.page }}>
-          <InvitationCard template={t} data={inv} compact />
+          <InvitationPlayer
+            template={t}
+            screens={screens}
+            context={{ slug: inv.slug, recipientName: inv.recipientName, authorName: user.name, eventDate: inv.eventDate, eventTime: inv.eventTime, place: inv.place }}
+            noMode={inv.noMode}
+            mode="preview"
+            compact
+          />
         </div>
       </aside>
     </div>
