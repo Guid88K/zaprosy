@@ -11,7 +11,7 @@ git push -u origin main
 
 ## 2. База даних у Turso
 
-Через сайт: зайдіть на https://app.turso.tech, створіть групу й базу `zaprosy` у регіоні **Frankfurt (fra)**, щоб вона була поруч із функціями Vercel. На сторінці бази скопіюйте **URL** (`libsql://zaprosy-<нік>.turso.io`) і створіть **токен** (Create Token, без терміну дії).
+Через сайт: зайдіть на https://app.turso.tech, створіть групу й базу `zaprosy` у тому ж регіоні, що й функції Vercel (у `vercel.json` задано `iad1`, тобто AWS us-east-1). На сторінці бази скопіюйте **URL** (`libsql://zaprosy-<нік>.turso.io`) і створіть **токен** (Create Token, без терміну дії).
 
 Або через CLI:
 
